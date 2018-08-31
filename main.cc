@@ -66,7 +66,7 @@ struct zeta_params full_to_zeta_params( const struct full_params in_params ){
   return out_params;
 }
 
-double int_zeta_00 (double x, void * p)
+double integral_zeta_00 (double x, void * p)
 {
   gsl_sf_result res;
   struct zeta_params * params = (struct zeta_params *)p;
@@ -84,15 +84,10 @@ double int_zeta_00 (double x, void * p)
 int main(int argc, char** argv)
 {
 
-  double epsabs = 1e-8;
-  double epsrel = 0.;
-  double abserr = 0.;
-  double result = 0.;
-  size_t limit = 100;
+  gsl_set_error_handler( &gsl_to_c_handler ); // set my own error handler
 
-  gsl_function F;
-  gsl_integration_workspace * w = gsl_integration_workspace_alloc(100);
   struct full_params fparams;
+  struct zeta_params zparams;
   fparams.dx = 0;
   fparams.dy = 0;
   fparams.dz = 0;
@@ -101,18 +96,24 @@ int main(int argc, char** argv)
   fparams.nz = 0;
   fparams.q2 = 0.;
   fparams.gam = 1.;
-  struct zeta_params zparams = full_to_zeta_params( fparams);
-  F.function = &int_zeta_00;
+  zparams = full_to_zeta_params( fparams);
+
+  gsl_function F;
+  F.function = &integral_zeta_00;
   F.params = &zparams;
 
-  gsl_set_error_handler( &gsl_to_c_handler );
-  std::cout << "test eval: " << int_zeta_00( 1.0e-8, &zparams) << std::endl;
-  std::cout << "test eval: " << int_zeta_00( 1.0e0, &zparams) << std::endl;
-  gsl_integration_qag(&F, 1e-8, 1., epsabs, epsrel, limit, 2, w, &result, &abserr);
-  gsl_set_error_handler( NULL );
+  double epsabs = 0.;
+  double epsrel = 1e-8;
+  double abserr = 0.;
+  double result = 0.;
+  size_t limit = 100;
+  gsl_integration_workspace * w = gsl_integration_workspace_alloc(limit);
+  gsl_integration_qag(&F, 0., 1., epsabs, epsrel, limit, 1, w, &result, &abserr);
 
   std::cout << "result: " << result << std::endl;
+  std::cout << "error : " << abserr << std::endl;
   std::cout << "test successful" << std::endl;
 
+  gsl_set_error_handler( NULL );
   return 0;
 }
