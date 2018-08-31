@@ -2,6 +2,8 @@
 #include <exception>
 #include <iostream>
 #include <math.h>
+#include <gsl/gsl_complex.h>
+#include <gsl/gsl_complex_math.h>
 #include <gsl/gsl_integration.h>
 #include <gsl/gsl_errno.h>
 #include <gsl/gsl_sf_exp.h>
@@ -40,7 +42,7 @@ void gsl_to_c_handler(const char* reason, const char* file, int line, int gsl_er
 // full parameters to get all prefactors correct
 struct full_params { int dx; int dy; int dz; int nx; int ny; int nz; double q2; double gam; };
 // just compute the parameters that are needed
-struct zeta_params { double q2; double ngam2; };
+struct zeta_params { double q2; double ngam2; gsl_complex phase; };
 
 struct zeta_params full_to_zeta_params( const struct full_params in_params ){
   struct zeta_params out_params;
@@ -60,8 +62,11 @@ struct zeta_params full_to_zeta_params( const struct full_params in_params ){
     // scale \vec{n} parallel to \vec{d} by \gamma, then square
     // include a factor of \pi^2 for convenience
     out_params.ngam2 = M_PI*M_PI*((gam*gam -1.) *(nd*nd/d2) +n2);
+    out_params.phase = gsl_complex_polar( gam, -M_PI*nd); // == \gamma e^{-i\pi n.d}
   } else {
+    // \vec{d} == 0, \gamma == 1.
     out_params.ngam2 = M_PI*M_PI*n2;
+    out_params.phase = gsl_complex_polar( 1., 0.); // ==1.
   }
   return out_params;
 }
@@ -110,7 +115,9 @@ int main(int argc, char** argv)
   gsl_integration_workspace * w = gsl_integration_workspace_alloc(limit);
   gsl_integration_qag(&F, 0., 1., epsabs, epsrel, limit, 1, w, &result, &abserr);
 
-  std::cout << "result: " << result << std::endl;
+  gsl_complex cresult = gsl_complex_mul_real( zparams.phase, result);
+
+  std::cout << "result: (" << GSL_REAL(cresult) <<", "<< GSL_IMAG(cresult) <<")"<< std::endl;
   std::cout << "error : " << abserr << std::endl;
   std::cout << "test successful" << std::endl;
 
