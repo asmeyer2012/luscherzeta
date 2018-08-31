@@ -1,51 +1,25 @@
 #include <cstdlib>
-#include <exception>
 #include <iostream>
 #include <math.h>
-//#include <string>
 #include <sstream>
 #include <gsl/gsl_complex.h>
 #include <gsl/gsl_complex_math.h>
 #include <gsl/gsl_integration.h>
-#include <gsl/gsl_errno.h>
 #include <gsl/gsl_math.h>
 #include <gsl/gsl_sf_exp.h>
 #include <gsl/gsl_sf_result.h>
+
+#include "gsl_exception_handler.h"
 
 // need gsl, blas => sudo apt-get install libgsl-dev libblas-dev
 
 using namespace std;
 
-std::string gsl_complex_to_string( gsl_complex val ){
+std::string gsl_complex_to_string( gsl_complex val )
+{
   stringstream sout;
   sout <<"(" <<GSL_REAL(val) <<", " <<GSL_IMAG(val) <<")";
   return sout.str();
-}
-
-struct gsl_underflow_exception : public exception {
-   const char * what () const throw () {
-      return "GSL_UNDERFLOW exception";
-   }
-};
-
-struct gsl_other_exception : public exception {
-   const char * what () const throw () {
-      return "GSL_* exception";
-   }
-};
-
-void gsl_to_c_handler(const char* reason, const char* file, int line, int gsl_errno)
-{
-  // throw my own error to catch
-  if (gsl_errno == 15) { // don't know where to find other error codes
-    throw gsl_underflow_exception();
-  }
-  std::cout << "reason   : " << reason    << std::endl;
-  std::cout << "file     : " << file      << std::endl;
-  std::cout << "line     : " << line      << std::endl;
-  std::cout << "gsl_errno: " << gsl_errno << std::endl;
-  std::cout << "GSL error: " << gsl_strerror( gsl_errno) << std::endl;
-  throw gsl_other_exception();
 }
 
 // full parameters to get all prefactors correct
@@ -58,7 +32,8 @@ struct zeta_params {
  double iphase;      // prefactor and phase on integral
  };
 
-struct zeta_params full_to_zeta_params( const struct full_params in_params ){
+struct zeta_params full_to_zeta_params( const struct full_params in_params )
+{
   struct zeta_params out_params;
   double nx = double(in_params.nx);
   double ny = double(in_params.ny);
@@ -118,6 +93,11 @@ double integral_zeta_00 (double x, void * p)
   }
 }
 
+//double full_zeta_00 (void * p)
+//{
+//  return 0.;
+//}
+
 int main(int argc, char** argv)
 {
 
@@ -148,8 +128,6 @@ int main(int argc, char** argv)
   gsl_integration_qag(&F, 0., 1., epsabs, epsrel, limit, 1, w, &result, &abserr);
   double cresult = zparams.iphase *result;
 
-  //std::cout << "result: (" << GSL_REAL(cresult) <<", "<< GSL_IMAG(cresult) <<")"<< std::endl;
-  //std::cout << "result: " << gsl_complex_to_string(cresult) << std::endl;
   std::cout << "result: " << cresult << std::endl;
   std::cout << "error : " << abserr  << std::endl;
   std::cout << "integral test successful" << std::endl;
