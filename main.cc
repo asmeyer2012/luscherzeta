@@ -23,25 +23,6 @@ struct gsl_other_exception : public exception {
    }
 };
 
-struct z00_params { double nx; double ny; double nz; double q2; };
-double z00 (double x, void * p)
-{
-  gsl_sf_result res;
-  struct z00_params * params = (struct z00_params *)p;
-  double nx = (params->nx);
-  double ny = (params->ny);
-  double nz = (params->nz);
-  double q2 = (params->q2);
-  double arg = q2 - (nx*nx +ny*ny +nz*nz);
-  // underflows are okay, just give 0. good enough.
-  try {
-    return gsl_sf_exp(x*arg); // exp{t *(q.q - n.n)}
-  }
-  catch ( gsl_underflow_exception& e) {
-    return 0.;
-  }
-}
-
 void gsl_to_c_handler(const char* reason, const char* file, int line, int gsl_errno)
 {
   // throw my own error to catch
@@ -56,6 +37,50 @@ void gsl_to_c_handler(const char* reason, const char* file, int line, int gsl_er
   throw gsl_other_exception();
 }
 
+// full parameters to get all prefactors correct
+struct full_params { int dx; int dy; int dz; int nx; int ny; int nz; double q2; double gam; };
+// just compute the parameters that are needed
+struct zeta_params { double q2; double ngam2; };
+
+struct zeta_params full_to_zeta_params( const struct full_params in_params ){
+  struct zeta_params out_params;
+  out_params.q2 = in_params.q2;
+  double nx = double(in_params.nx);
+  double ny = double(in_params.ny);
+  double nz = double(in_params.nz);
+  double n2 = (nx*nx +ny*ny +nz*nz);
+  if (in_params.dx || in_params.dy || in_params.dz) {
+    double dx = double(in_params.dx);
+    double dy = double(in_params.dy);
+    double dz = double(in_params.dz);
+    // vector dot products
+    double nd = (nx*dx +ny*dy +nz*dz);
+    double d2 = (dx*dx +dy*dy +dz*dz);
+    double gam = in_params.gam;
+    // scale \vec{n} parallel to \vec{d} by \gamma, then square
+    // include a factor of \pi^2 for convenience
+    out_params.ngam2 = M_PI*M_PI*((gam*gam -1.) *(nd*nd/d2) +n2);
+  } else {
+    out_params.ngam2 = M_PI*M_PI*n2;
+  }
+  return out_params;
+}
+
+double int_zeta_00 (double x, void * p)
+{
+  gsl_sf_result res;
+  struct zeta_params * params = (struct zeta_params *)p;
+  double q2 = (params->q2);
+  double ngam2 = (params->ngam2);
+  // underflows are okay, just give 0. good enough.
+  try {
+    return pow( M_PI/x, 1.5) *gsl_sf_exp(q2*x -ngam2/x); // exp{t *(q.q - n.n)}
+  }
+  catch ( gsl_underflow_exception& e) {
+    return 0.;
+  }
+}
+
 int main(int argc, char** argv)
 {
 
@@ -67,30 +92,27 @@ int main(int argc, char** argv)
 
   gsl_function F;
   gsl_integration_workspace * w = gsl_integration_workspace_alloc(100);
-  struct z00_params params = { 1.0, 0.0, 0.0, 0.0 };
-  F.function = &z00;
-  F.params = &params;
+  struct full_params fparams;
+  fparams.dx = 0;
+  fparams.dy = 0;
+  fparams.dz = 0;
+  fparams.nx = 1;
+  fparams.ny = 0;
+  fparams.nz = 0;
+  fparams.q2 = 0.;
+  fparams.gam = 1.;
+  struct zeta_params zparams = full_to_zeta_params( fparams);
+  F.function = &int_zeta_00;
+  F.params = &zparams;
 
   gsl_set_error_handler( &gsl_to_c_handler );
-  //std::cout << "test: " << z00( -1e10, &params) << std::endl; // overflow, test
-  //std::cout << "test: " << z00( 1e10, &params) << std::endl; // underflow, test
-  //std::cout << "test: " << z00( 10., &params) << std::endl;
-  gsl_integration_qagiu(&F, 1., epsabs, epsrel, limit, w, &result, &abserr);
+  std::cout << "test eval: " << int_zeta_00( 1.0e-8, &zparams) << std::endl;
+  std::cout << "test eval: " << int_zeta_00( 1.0e0, &zparams) << std::endl;
+  gsl_integration_qag(&F, 1e-8, 1., epsabs, epsrel, limit, 2, w, &result, &abserr);
   gsl_set_error_handler( NULL );
 
   std::cout << "result: " << result << std::endl;
   std::cout << "test successful" << std::endl;
-
-  //if (m % 2 == 0)
-  //expected = M_SQRTPI + gsl_sf_gamma(0.5*(1.0 + m));
-  //else
-  //expected = M_SQRTPI;
-  //printf ("m = %d\n", m);
-  //printf ("intervals = %zu\n", gsl_integration_fixed_n(w));
-  //printf ("result = % .18f\n", result);
-  //printf ("exact result = % .18f\n", expected);
-  //printf ("actual error = % .18f\n", result - expected);
-  //gsl_integration_fixed_free (w);
 
   return 0;
 }
