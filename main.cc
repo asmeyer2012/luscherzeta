@@ -55,8 +55,7 @@ struct zeta_params {
  double q2;          // q2 from input
  double ngam2;       // exponent of integral
  double leadsum;     // leading sum term
- //gsl_complex iphase; // prefactor and phase on integral
- double iphase; // prefactor and phase on integral
+ double iphase;      // prefactor and phase on integral
  };
 
 struct zeta_params full_to_zeta_params( const struct full_params in_params ){
@@ -86,7 +85,6 @@ struct zeta_params full_to_zeta_params( const struct full_params in_params ){
     // include a factor of \pi^2 for convenience
     out_params.ngam2 = M_PI*M_PI*((gam*gam -1.) *(nd*nd/d2) +n2);
     // == \gamma e^{-i\pi n.d} / 2\sqrt{\pi}, phase for integral
-    //out_params.iphase = gsl_complex_polar( .5*gam /M_SQRTPI, -M_PI*nd);
     out_params.iphase = .5*gam /M_SQRTPI *gsl_pow_int(-1.,int(nd)); // nd is always integer, so real
     r2q2 = r2 - in_params.q2; // argument for leading sum term
   }
@@ -94,14 +92,12 @@ struct zeta_params full_to_zeta_params( const struct full_params in_params ){
 
     // \vec{d} == 0, \gamma == 1.
     out_params.ngam2 = M_PI*M_PI*n2;
-    //out_params.iphase = gsl_complex_polar( .5 /M_SQRTPI, 0.); // == 1. / 2\sqrt{\pi}
     out_params.iphase = .5 /M_SQRTPI; // == 1. / 2\sqrt{\pi}
     r2q2 = n2 - in_params.q2; // == n^2 - q^2
   }
 
   out_params.leadsum = gsl_sf_exp(-r2q2) /(2.*M_SQRTPI*r2q2);
   std::cout << "ngam2  : " << out_params.ngam2  << std::endl;
-  //std::cout << "iphase : " << gsl_complex_to_string(out_params.iphase) << std::endl;
   std::cout << "iphase : " << out_params.iphase  << std::endl;
   std::cout << "leadsum: " << out_params.leadsum << std::endl;
   return out_params;
@@ -150,7 +146,6 @@ int main(int argc, char** argv)
   size_t limit = 100;
   gsl_integration_workspace * w = gsl_integration_workspace_alloc(limit);
   gsl_integration_qag(&F, 0., 1., epsabs, epsrel, limit, 1, w, &result, &abserr);
-  //gsl_complex cresult = gsl_complex_mul_real( zparams.iphase, result);
   double cresult = zparams.iphase *result;
 
   //std::cout << "result: (" << GSL_REAL(cresult) <<", "<< GSL_IMAG(cresult) <<")"<< std::endl;
