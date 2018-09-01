@@ -1,7 +1,10 @@
+#include <algorithm> // std::count
+#include <assert.h>
 #include <cstdlib>
 #include <iostream>
 #include <math.h>
 #include <sstream>
+#include <vector>
 #include <gsl/gsl_complex.h>
 #include <gsl/gsl_complex_math.h>
 #include <gsl/gsl_integration.h>
@@ -32,6 +35,7 @@ struct zeta_params {
  double iphase;      // prefactor and phase on integral
  };
 
+// \sum_l (q^2)^l /((2l-1) \Gamma(l+1) ) == (\sqrt{q^2} Erfi{\sqrt{q^2}} - e^{q^2})
 struct zeta_params full_to_zeta_params( const struct full_params in_params )
 {
   struct zeta_params out_params;
@@ -80,7 +84,6 @@ struct zeta_params full_to_zeta_params( const struct full_params in_params )
 
 double integral_zeta_00 (double x, void * p)
 {
-  gsl_sf_result res;
   struct zeta_params * params = (struct zeta_params *)p;
   double q2 = (params->q2);
   double ngam2 = (params->ngam2);
@@ -92,6 +95,158 @@ double integral_zeta_00 (double x, void * p)
     return 0.;
   }
 }
+
+std::vector< std::vector<int>> all_permutations_00p( std::vector<int> n0)
+{
+  std::vector< std::vector<int>> np;
+  std::vector<int> n1 = n0;
+  n1[2] = -n1[2];
+  std::sort( n1.begin(), n1.end());
+  np.push_back(n0); np.push_back(n1);
+  while (std::next_permutation( n0.begin(), n0.end())) { np.push_back(n0); };
+  while (std::next_permutation( n1.begin(), n1.end())) { np.push_back(n1); };
+  return np;
+}
+
+std::vector< std::vector<int>> all_permutations_0pp( std::vector<int> n0)
+{
+  std::vector< std::vector<int>> np;
+  std::vector<int> n1 = n0;
+  std::vector<int> n2 = n0;
+  n1[2] = -n1[2]; n2[1] = -n2[1]; n2[2] = -n2[2];
+  std::sort( n1.begin(), n1.end()); std::sort( n2.begin(), n2.end());
+  np.push_back(n0); np.push_back(n1); np.push_back(n2);
+  while (std::next_permutation( n0.begin(), n0.end())) { np.push_back(n0); };
+  while (std::next_permutation( n1.begin(), n1.end())) { np.push_back(n1); };
+  while (std::next_permutation( n2.begin(), n2.end())) { np.push_back(n2); };
+  return np;
+}
+
+std::vector< std::vector<int>> all_permutations_ppp( std::vector<int> n0)
+{
+  std::vector< std::vector<int>> np0,np;
+  std::vector<int> n1 = n0;
+  n1[2] = -n1[2];
+  std::sort( n1.begin(), n1.end());
+  np0.push_back(n0); np0.push_back(n1);
+  while (std::next_permutation( n1.begin(), n1.end())) { np0.push_back(n1); };
+  for (auto nx = np0.begin(); nx != np0.end(); nx++) {
+   n1 = *nx; n1[0] = -n1[0]; n1[1] = -n1[1]; n1[2] = -n1[2];
+   np.push_back(*nx); np.push_back(n1); };
+  return np;
+}
+
+std::vector< std::vector<int>> all_permutations_0pq( std::vector<int> n0)
+{
+  std::vector< std::vector<int>> np0,np;
+  std::vector<int> n1 = n0;
+  n1[2] = -n1[2];
+  std::sort( n1.begin(), n1.end());
+  np0.push_back(n0); np0.push_back(n1);
+  while (std::next_permutation( n0.begin(), n0.end())) { np0.push_back(n0); };
+  while (std::next_permutation( n1.begin(), n1.end())) { np0.push_back(n1); };
+  for (auto nx = np0.begin(); nx != np0.end(); nx++) {
+   n1 = *nx; n1[0] = -n1[0]; n1[1] = -n1[1]; n1[2] = -n1[2];
+   np.push_back(*nx); np.push_back(n1); };
+  return np;
+}
+
+std::vector< std::vector<int>> all_permutations_ppq( std::vector<int> n0)
+{
+  std::vector< std::vector<int>> np0,np;
+  std::vector<int> n1 = n0;
+  std::vector<int> n2 = n0;
+  n1[1] = -n1[1]; n2[2] = -n2[2];
+  std::sort( n1.begin(), n1.end()); std::sort( n2.begin(), n2.end());
+  np0.push_back(n0); np0.push_back(n1); np0.push_back(n2);
+  while (std::next_permutation( n0.begin(), n0.end())) { np0.push_back(n0); };
+  while (std::next_permutation( n1.begin(), n1.end())) { np0.push_back(n1); };
+  while (std::next_permutation( n2.begin(), n2.end())) { np0.push_back(n2); };
+  for (auto nx = np0.begin(); nx != np0.end(); nx++) {
+   n1 = *nx; n1[0] = -n1[0]; n1[1] = -n1[1]; n1[2] = -n1[2];
+   np.push_back(*nx); np.push_back(n1); };
+  return np;
+}
+
+std::vector< std::vector<int>> all_permutations_pqq( std::vector<int> n0)
+{
+  std::vector< std::vector<int>> np0,np;
+  std::vector<int> n1 = n0;
+  std::vector<int> n2 = n0;
+  n1[0] = -n1[0]; n2[2] = -n2[2];
+  std::sort( n1.begin(), n1.end()); std::sort( n2.begin(), n2.end());
+  np0.push_back(n0); np0.push_back(n1); np0.push_back(n2);
+  while (std::next_permutation( n0.begin(), n0.end())) { np0.push_back(n0); };
+  while (std::next_permutation( n1.begin(), n1.end())) { np0.push_back(n1); };
+  while (std::next_permutation( n2.begin(), n2.end())) { np0.push_back(n2); };
+  for (auto nx = np0.begin(); nx != np0.end(); nx++) {
+   n1 = *nx; n1[0] = -n1[0]; n1[1] = -n1[1]; n1[2] = -n1[2];
+   np.push_back(*nx); np.push_back(n1); };
+  return np;
+}
+
+std::vector< std::vector<int>> all_permutations_pqr( std::vector<int> n0)
+{
+  std::vector< std::vector<int>> np0,np;
+  std::vector<int> n1 = n0;
+  std::vector<int> n2 = n0;
+  std::vector<int> n3 = n0;
+  n1[1] = -n1[1]; n2[2] = -n2[2]; n3[1] = -n3[1]; n3[2] = -n3[2];
+  std::sort( n1.begin(), n1.end()); std::sort( n2.begin(), n2.end());
+  std::sort( n3.begin(), n3.end());
+  np0.push_back(n0); np0.push_back(n1); np0.push_back(n2); np0.push_back(n3);
+  while (std::next_permutation( n0.begin(), n0.end())) { np0.push_back(n0); };
+  while (std::next_permutation( n1.begin(), n1.end())) { np0.push_back(n1); };
+  while (std::next_permutation( n2.begin(), n2.end())) { np0.push_back(n2); };
+  while (std::next_permutation( n3.begin(), n3.end())) { np0.push_back(n3); };
+  for (auto nx = np0.begin(); nx != np0.end(); nx++) {
+   n1 = *nx; n1[0] = -n1[0]; n1[1] = -n1[1]; n1[2] = -n1[2];
+   np.push_back(*nx); np.push_back(n1); };
+  return np;
+}
+
+// from a general starting vector, add all permutations to a vector
+std::vector< std::vector<int>> all_permutations( std::vector<int> n0)
+{
+  assert( n0.size() == 3); // only 3-vectors
+
+  // count number of zeros
+  int zeroCount = std::count( n0.begin(), n0.end(), 0);
+  assert( zeroCount < 3); // must be nonzero vector
+
+  // count number of unique, taking into account signs
+  std::vector<int> n0a;
+  for (auto nx = n0.begin(); nx != n0.end(); nx++) { n0a.push_back( abs(*nx)); }
+  std::sort( n0a.begin(), n0a.end());
+  int uniqueCount = 1;
+  if (n0a[0] != n0a[1]) { uniqueCount++; }
+  if (n0a[1] != n0a[2]) { uniqueCount++; }
+
+  // check for ppq vs pqq case
+  bool sameFront = ( n0a[0] == n0a[1] );
+
+  // decide which class it belongs to
+  if      (zeroCount == 2) { return all_permutations_00p( n0a); }
+  else if (zeroCount == 1) {
+    if      (uniqueCount == 2) { return all_permutations_0pp( n0a); }
+    else if (uniqueCount == 3) { return all_permutations_0pq( n0a); }
+  }
+  else if (zeroCount == 0) {
+    if      (uniqueCount == 3) { return all_permutations_pqr( n0a); }
+    else if (uniqueCount == 2) {
+      if (sameFront) { return all_permutations_ppq( n0a); }
+      else           { return all_permutations_pqq( n0a); }
+    }
+    else if (uniqueCount == 1) { return all_permutations_ppp( n0a); }
+  }
+  assert(0); // failed to find a class for the momentum
+}
+
+//double n0sum_zeta_00 (void * p)
+//{
+//  struct zeta_params * params = (struct zeta_params *)p;
+//  double q2 = (params->q2);
+//}
 
 //double full_zeta_00 (void * p)
 //{
@@ -108,7 +263,7 @@ int main(int argc, char** argv)
   fparams.dx = 1;
   fparams.dy = 1;
   fparams.dz = 0;
-  fparams.nx = 2;
+  fparams.nx = 3;
   fparams.ny = 0;
   fparams.nz = 0;
   fparams.q2 = .1;
@@ -131,6 +286,25 @@ int main(int argc, char** argv)
   std::cout << "result: " << cresult << std::endl;
   std::cout << "error : " << abserr  << std::endl;
   std::cout << "integral test successful" << std::endl;
+
+  std::vector< std::vector<int>> testvec;
+  //testvec.push_back({0,0,1}); // done
+  //testvec.push_back({0,1,1}); // done
+  //testvec.push_back({1,1,1}); // done
+  //testvec.push_back({0,1,2}); // done
+  //testvec.push_back({1,1,2}); // done
+  //testvec.push_back({1,2,2}); // done
+  //testvec.push_back({1,2,3}); // done
+  for (auto vec = testvec.begin(); vec != testvec.end(); vec++) {
+    auto vecout = all_permutations( *vec);
+    std::cout << "input vector: " <<(*vec)[0] <<", " <<(*vec)[1] <<", " <<(*vec)[2] << std::endl;
+    int i = 0;
+    for (auto pvec = vecout.begin(); pvec != vecout.end(); pvec++) {
+      i++;
+      std::cout << "-- output vector " <<i <<": "
+      <<(*pvec)[0] <<", " <<(*pvec)[1] <<", " <<(*pvec)[2] << std::endl;
+    }
+  }
 
   gsl_set_error_handler( NULL );
   return 0;
