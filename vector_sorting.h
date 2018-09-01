@@ -151,4 +151,22 @@ std::vector< std::vector<int>> all_permutations( std::vector<int> n0)
   assert(0); // failed to find a class for the momentum
 }
 
+int norm2( std::vector<int> vec) { return vec[0]*vec[0] +vec[1]*vec[1] +vec[2]*vec[2]; }
+
+// figure out all of the permutations that have a given p^2
+std::vector< std::vector<int>> all_combos( int p2)
+{
+  double p = sqrt(p2);
+  std::vector< std::vector<int>> np;
+  for (int nx = ceil( p); nx >= floor( p/sqrt(3.) ); nx--) {
+    for (int ny = ceil( sqrt(p2 -nx*nx)); ny >= floor( sqrt(p2 -nx*nx)/sqrt(2.) ); ny--) {
+      int nz = floor( sqrt(p2 -nx*nx -ny*ny));
+      if (ny > nx) { continue; }
+      if (nz > ny) { continue; }
+      if ( norm2({nx,ny,nz}) == p2 ) { np.push_back({nx,ny,nz}); }
+    }
+  }
+  return np;
+}
+
 #endif
