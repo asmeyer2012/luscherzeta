@@ -147,12 +147,12 @@ double full_zeta_slow_00 (struct full_params p)
         std::cout << "  |  contribution : " << 1./zp.r2q2 << std::endl;
       }
     }
-    //std::cout << "skipP2 : " << skipP2 << std::endl;
-    //std::cout << "prevAns: " << prevAns << std::endl;
-    //std::cout << "nextAns: " << nextAns << std::endl;
-    //std::cout << RELERR << " < " << abs(prevAns - nextAns)/abs(nextAns) << std::endl;
+    std::cout << "skipP2 : " << skipP2 << std::endl;
+    std::cout << "prevAns: " << prevAns << std::endl;
+    std::cout << "nextAns: " << nextAns << std::endl;
+    std::cout << RELERR << " < " << abs(prevAns - nextAns)/abs(nextAns) << std::endl;
     i++;
-    assert(i < 100);
+    assert(i < 1000);
   }
   return nextAns;
 }
@@ -212,7 +212,9 @@ double full_zeta_00 (struct full_params p)
   }
 
   //std::cout << "n000 sum : " << n000_sum( p.q2) << std::endl;
-  //std::cout << "n000 term: " << n000_term << std::endl;
+  std::cout << "sum term: " << nextAnsSum << std::endl;
+  std::cout << "int term: " << nextAnsInt << std::endl;
+  std::cout << "000 term: " << n000_term << std::endl;
   return nextAnsSum + nextAnsInt + n000_term;
 }
 
@@ -228,58 +230,10 @@ int main(int argc, char** argv)
   fparams.dz = 0;
   fparams.q2 = 0.;
   fparams.gam = 1.;
-  int nx = 3;
-  int ny = 0;
-  int nz = 0;
-  zparams = full_to_zeta_params( nx,ny,nz, fparams);
-
-  gsl_function F;
-  F.function = &integral_zeta_00;
-  F.params = &zparams;
-
-  double epsabs = 0.;
-  double epsrel = 1e-8;
-  double abserr = 0.;
-  double result = 0.;
-  size_t limit = 100;
-  gsl_integration_workspace * w = gsl_integration_workspace_alloc(limit);
-  gsl_integration_qag(&F, 0., 1., epsabs, epsrel, limit, 1, w, &result, &abserr);
-  double cresult = zparams.iphase *result;
-
-  std::cout << "result: " << cresult << std::endl;
-  std::cout << "error : " << abserr  << std::endl;
-  std::cout << "integral test successful" << std::endl;
-
-  //std::vector< std::vector<int>> testvec;
-  //testvec.push_back({0,0,1}); // done
-  //testvec.push_back({0,1,1}); // done
-  //testvec.push_back({1,1,1}); // done
-  //testvec.push_back({0,1,2}); // done
-  //testvec.push_back({1,1,2}); // done
-  //testvec.push_back({1,2,2}); // done
-  //testvec.push_back({1,2,3}); // done
-  //for (auto vec = testvec.begin(); vec != testvec.end(); vec++) {
-  //  auto vecout = all_permutations( *vec);
-  //  std::cout << "input vector: " <<(*vec)[0] <<", " <<(*vec)[1] <<", " <<(*vec)[2] << std::endl;
-  //  int i = 0;
-  //  for (auto pvec = vecout.begin(); pvec != vecout.end(); pvec++) {
-  //    i++;
-  //    std::cout << "-- output vector " <<i <<": "
-  //    <<(*pvec)[0] <<", " <<(*pvec)[1] <<", " <<(*pvec)[2] << std::endl;
-  //  }
-  //}
-
-  //for (int i=1; i<25; i++){
-  //  auto vecout = all_combos( i);
-  //  std::cout << "i: " <<i << std::endl;
-  //  for (auto pvec = vecout.begin(); pvec != vecout.end(); pvec++) {
-  //    std::cout << "-- output vector: "
-  //    <<(*pvec)[0] <<", " <<(*pvec)[1] <<", " <<(*pvec)[2] << std::endl;
-  //  }
-  //}
 
   std::cout << "zeta 00 : " << full_zeta_00 (fparams) << std::endl;
   //std::cout << full_zeta_slow_00 (fparams) << std::endl;
+  //std::cout << full_zeta_00 (fparams) << std::endl;
   //std::cout << "dawson: " << erfi( fparams.q2) << std::endl;
   std::cout << "zeta test successful" << std::endl;
 
