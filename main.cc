@@ -5,6 +5,7 @@
 #include <sstream>
 
 #include "gsl_exception_handler.h"
+#include "legendre.h"
 #include "vector_sorting.h"
 #include "zeta.h"
 
@@ -33,6 +34,8 @@ int main(int argc, char** argv)
   fparams.gam = 1.1;
 
   std::cout << "zeta 00 : " << full_zeta_00 (fparams) << std::endl;
+
+  associated_legendre algen(); // generator for associated legendre polynomials
 
   gsl_set_error_handler( NULL );
   return 0;
