@@ -3,6 +3,7 @@
 
 #include <algorithm> // std::count
 #include <assert.h>
+#include <math.h>
 #include <vector>
 
 std::vector< std::vector<int>> all_permutations_00p( std::vector<int> n0)
