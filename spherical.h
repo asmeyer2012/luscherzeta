@@ -5,6 +5,8 @@
 #include <math.h>
 #include <vector>
 
+#include <gsl/gsl_complex.h>
+#include <gsl/gsl_complex_math.h>
 #include <gsl/gsl_sf_gamma.h>
 
 class poly_term
@@ -217,6 +219,58 @@ void associated_legendre::increment_max_order() {
     //std::cout << this->get_poly(l+1,m).as_string() << std::endl;
   }
   this->maxOrder++;
+}
+
+class spherical_harmonic
+{
+  public:
+  spherical_harmonic(int maxOrder);
+  gsl_complex evaluate( int l, int m, double x0, double x1, double x2);
+  private:
+  associated_legendre *aleg;
+  associated_legendre_poly *alpoly;
+  int lnow,mnow;
+  void load_poly( int l, int m);
+  double Ylm_cosTheta(double x0, double x1, double x2);
+  double Ylm_phi(double x0, double x1, double x2);
+};
+
+spherical_harmonic::spherical_harmonic(int maxOrder) {
+  this->aleg = new associated_legendre(maxOrder);
+  this->lnow = 0;
+  this->mnow = 0;
+  this->load_poly(0,0);
+}
+
+void spherical_harmonic::load_poly( int l, int m) {
+  if (l != this->lnow || m != this->mnow) {
+   *alpoly = aleg->get(l,m);
+  }
+}
+
+gsl_complex spherical_harmonic::evaluate( int l, int m, double x0, double x1, double x2) {
+  double xl = pow( x0*x0 +x1*x1 +x2*x2, .5*l);
+  if (xl > 0.) {
+    double pfac = sqrt( ((2.*l+1.) /(4.*M_PI)) * gsl_sf_gamma( l-m+1.) /gsl_sf_gamma( l+m+1.) );
+    double costh = this->Ylm_cosTheta( x0,x1,x2);
+    // exp{i m.phi}
+    gsl_complex eimphi = gsl_complex_polar( 1., double(m)*this->Ylm_phi( x0,x1,x2) );
+    //associated_legendre_poly alpoly = aleg->get(l,m);
+    this->load_poly(l,m);
+    return gsl_complex_mul_real( eimphi, pfac* this->alpoly->evaluate( costh) );
+  }
+  else {
+    return gsl_complex_polar( 0., 0. );
+  }
+};
+
+// helper functions to compute angles from a vector
+double spherical_harmonic::Ylm_cosTheta(double x0, double x1, double x2) {
+  double x = sqrt(x0*x0 + x1*x1 + x2*x2);
+  return x2/x;
+}
+double spherical_harmonic::Ylm_phi(double x0, double x1, double x2) {
+  return atan(x1/x0);
 }
 
 #endif

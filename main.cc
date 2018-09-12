@@ -5,7 +5,7 @@
 #include <sstream>
 
 #include "gsl_exception_handler.h"
-#include "legendre.h"
+#include "spherical.h"
 #include "vector_sorting.h"
 #include "zeta.h"
 
@@ -32,6 +32,8 @@ int main(int argc, char** argv)
   fparams.dz = 1;
   fparams.q2 = .9;
   fparams.gam = 1.1;
+  fparams.l = 0;
+  fparams.m = 0;
 
   std::cout << "zeta 00 : " << full_zeta_med_00 (fparams) << std::endl;
   std::cout << "zeta 00 : " << full_zeta_00 (fparams) << std::endl;
