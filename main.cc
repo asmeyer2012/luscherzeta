@@ -28,14 +28,15 @@ int main(int argc, char** argv)
   struct full_params fparams;
   struct zeta_params zparams;
   fparams.dx = 0;
-  fparams.dy = -1;
+  fparams.dy = 1;
   fparams.dz = 1;
-  fparams.q2 = .6;
+  fparams.q2 = .9;
   fparams.gam = 1.1;
 
+  std::cout << "zeta 00 : " << full_zeta_med_00 (fparams) << std::endl;
   std::cout << "zeta 00 : " << full_zeta_00 (fparams) << std::endl;
 
-  associated_legendre algen(); // generator for associated legendre polynomials
+  //associated_legendre algen(); // generator for associated legendre polynomials
 
   gsl_set_error_handler( NULL );
   return 0;

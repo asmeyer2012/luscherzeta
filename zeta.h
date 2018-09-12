@@ -101,44 +101,44 @@ double n000_sum( double q2)
   return M_SQRTPI *srq2 *erfi(srq2) -gsl_sf_exp(q2);
 }
 
-// very slowly converging!
-double full_zeta_slow_00 (struct full_params p)
-{
-  int i = 1;
-  double prevAns = 0.;
-  double nextAns = 0.;
-  bool skipP2 = false;
-  // add the 000 term
-  struct zeta_params zp = full_to_zeta_params( 0,0,0, p);
-  nextAns += 1./zp.r2q2/(2.*M_SQRTPI);
-  //std::cout << "  |  contribution : " << 1./zp.r2q2 << std::endl;
-  //while ( (RELERR*abs(nextAns) < abs(prevAns - nextAns)) || (i % 4 != 0) || skipP2 ) {
-  while ( relerr_check( prevAns, nextAns) || (i % 4 != 0) || skipP2 ) {
-    //std::cout << "iteration " <<i <<std::endl;
-    prevAns = nextAns; skipP2 = false;
-    auto vecCombos = all_combos( i); // get a list of all vector combos for this choice
-    if ( vecCombos.size() == 0) { skipP2 = true; }
-    for ( auto vecc = vecCombos.begin(); vecc != vecCombos.end(); vecc++ ) {
-      auto vecPerms = all_permutations( *vecc);
-      for ( auto vecp = vecPerms.begin(); vecp != vecPerms.end(); vecp++ ) {
-        //std::cout << "sum vector: "
-        //  <<(*vecp)[0] <<", " <<(*vecp)[1] <<", " <<(*vecp)[2];
-        zp = full_to_zeta_params( (*vecp)[0], (*vecp)[1], (*vecp)[2], p);
-        nextAns += 1./zp.r2q2/(2.*M_SQRTPI);
-        std::cout << "  |  contribution : " << 1./zp.r2q2/(2.*M_SQRTPI) << std::endl;
-      }
-    }
-    std::cout << "skipP2 : " << skipP2 << std::endl;
-    std::cout << "prevAns: " << prevAns << std::endl;
-    std::cout << "nextAns: " << nextAns << std::endl;
-    std::cout << RELERR << " < " << abs(prevAns - nextAns)/abs(nextAns) << std::endl;
-    i++;
-    assert(i < 1000);
-  }
-  return nextAns;
-}
+//// non-convergent for s=1!
+//double full_zeta_slow_00 (struct full_params p)
+//{
+//  int i = 1;
+//  double prevAns = 0.;
+//  double nextAns = 0.;
+//  bool skipP2 = false;
+//  // add the 000 term
+//  struct zeta_params zp = full_to_zeta_params( 0,0,0, p);
+//  nextAns += 1./zp.r2q2/(2.*M_SQRTPI);
+//  //std::cout << "  |  contribution : " << 1./zp.r2q2 << std::endl;
+//  //while ( (RELERR*abs(nextAns) < abs(prevAns - nextAns)) || (i % 4 != 0) || skipP2 ) {
+//  while ( relerr_check( prevAns, nextAns) || (i % 4 != 0) || skipP2 ) {
+//    //std::cout << "iteration " <<i <<std::endl;
+//    prevAns = nextAns; skipP2 = false;
+//    auto vecCombos = all_combos( i); // get a list of all vector combos for this choice
+//    if ( vecCombos.size() == 0) { skipP2 = true; }
+//    for ( auto vecc = vecCombos.begin(); vecc != vecCombos.end(); vecc++ ) {
+//      auto vecPerms = all_permutations( *vecc);
+//      for ( auto vecp = vecPerms.begin(); vecp != vecPerms.end(); vecp++ ) {
+//        //std::cout << "sum vector: "
+//        //  <<(*vecp)[0] <<", " <<(*vecp)[1] <<", " <<(*vecp)[2];
+//        zp = full_to_zeta_params( (*vecp)[0], (*vecp)[1], (*vecp)[2], p);
+//        nextAns += 1./zp.r2q2/(2.*M_SQRTPI);
+//        std::cout << "  |  contribution : " << 1./zp.r2q2/(2.*M_SQRTPI) << std::endl;
+//      }
+//    }
+//    std::cout << "skipP2 : " << skipP2 << std::endl;
+//    std::cout << "prevAns: " << prevAns << std::endl;
+//    std::cout << "nextAns: " << nextAns << std::endl;
+//    std::cout << RELERR << " < " << abs(prevAns - nextAns)/abs(nextAns) << std::endl;
+//    i++;
+//    assert(i < 1000);
+//  }
+//  return nextAns;
+//}
 
-// integration method, faster
+// integration method, faster and convergent
 // q2 = 0, gam = 1. => zeta_00 = -8.91363292
 double full_zeta_00 (struct full_params p)
 {
@@ -200,6 +200,176 @@ double full_zeta_00 (struct full_params p)
   //std::cout << "int term: " << nextAnsInt << std::endl;
   //std::cout << "000 term: " << n000_term << std::endl;
   return nextAnsSum + nextAnsInt + n000_term;
+}
+
+// just compute the parameters that are needed
+struct zeta_med_params {
+ double r2q2;        // r2 - q2
+ double r2;          // r2
+ double q2;          // q2 from input
+ double gam;         // gam from input
+ double ngam2;       // exponent of integral
+ double leadsum;     // leading sum term
+ double iphase;      // prefactor and phase on integral
+ };
+
+// \sum_l (q^2)^l /((2l-1) \Gamma(l+1) ) == (\sqrt{q^2} Erfi{\sqrt{q^2}} - e^{q^2})
+struct zeta_med_params full_to_zeta_med_params( int inx, int iny, int inz,
+  const struct full_params in_params )
+{
+  struct zeta_med_params out_params;
+  double nx = double(inx);
+  double ny = double(iny);
+  double nz = double(inz);
+  double n2 = (nx*nx +ny*ny +nz*nz);
+  double gam = in_params.gam;
+  out_params.q2 = in_params.q2;
+  out_params.gam = in_params.gam;
+  double nd,npar2,r2;
+
+  if (in_params.dx || in_params.dy || in_params.dz) {
+    double dx = double(in_params.dx);
+    double dy = double(in_params.dy);
+    double dz = double(in_params.dz);
+    // vector dot products
+    double d2 = (dx*dx +dy*dy +dz*dz);
+    nd = (nx*dx +ny*dy +nz*dz);
+    npar2 = nd*nd/d2;
+    // (n_par + d/2)^2/gam^2 +n_perp^2
+    r2 = (npar2 +nd +.25*d2)/(gam*gam) +n2 - npar2;
+
+  }
+  else {
+    // \vec{d} == 0, \gamma == 1.
+    nd = 0.;
+    npar2 = 0.; // prevent division by 0.
+    r2 = n2;
+  }
+
+  double r2q2 = r2 - in_params.q2; // argument for leading sum term
+  // scale \vec{n} parallel to \vec{d} by \gamma, then square
+  // include a factor of \pi^2 for convenience
+  out_params.ngam2 = M_PI*M_PI*((gam*gam -1.) *npar2 +n2);
+  // == \gamma e^{-i\pi n.d} / 2\sqrt{\pi}, phase for integral
+  // nd is always integer, so real
+  out_params.iphase = gam /(2.*M_SQRTPI) *gsl_pow_int(-1.,int(nd));
+  // other useful terms
+  out_params.r2 = r2;
+  out_params.r2q2 = r2q2;
+  out_params.leadsum = 1. /(2.*M_SQRTPI*r2q2);
+  //std::cout << "ngam2  : " << out_params.ngam2  << std::endl;
+  //std::cout << "iphase : " << out_params.iphase  << std::endl;
+  //std::cout << "leadsum: " << out_params.leadsum << std::endl;
+  return out_params;
+}
+
+// version that subtracts out the divergence at x=0
+double integral_zeta_00_sub (double x, void * p)
+{
+  struct zeta_med_params * params = (struct zeta_med_params *)p;
+  double q2 = (params->q2);
+  double ngam2 = (params->ngam2);
+  // underflows are okay, just give 0. good enough.
+  try {
+    return pow( M_PI/x, 1.5) *(gsl_sf_exp(q2*x -ngam2/x) - 1.);
+  }
+  catch ( gsl_underflow_exception& e) {
+    return 0.;
+  }
+}
+
+double integral_zeta_00_med(double x, void * p)
+{
+  struct zeta_med_params * params = (struct zeta_med_params *)p;
+  double q2 = (params->q2);
+  double ngam2 = (params->ngam2);
+  // underflows are okay, just give 0. good enough.
+  try {
+    //std::cout << ".." << q2 <<"," << ngam2 << std::endl;
+    //std::cout << ".." << q2*x <<"," << -ngam2/x  <<"," << (q2*x -ngam2/x) << std::endl;
+    //std::cout << ".." << gsl_sf_exp(q2*x -ngam2/x) << std::endl;
+    //std::cout << x <<"," << pow( M_PI/x, 1.5) *gsl_sf_exp(q2*x -ngam2/x) << std::endl;
+    return pow( M_PI/x, 1.5) *gsl_sf_exp(q2*x -ngam2/x); // exp{t q.q - n.n/t}
+  }
+  catch ( gsl_underflow_exception& e) {
+    return 0.;
+  }
+}
+
+// slower method that should work for lm nonzero
+double full_zeta_med_00 (struct full_params p)
+{
+  int i = 1;
+  double prevAns = 0.;
+  double nextAns = 0.;
+  double epsabs = 0.;
+  double epsrel = 1e-6;
+  double abserr = 0.;
+  double result = 0.;
+  size_t limit = 1000;
+  bool skipP2 = false;
+  struct zeta_med_params zp;
+
+  gsl_function F;
+  gsl_integration_workspace * w = gsl_integration_workspace_alloc(limit);
+  F.params = &zp;
+
+  // zero term needs to be handled explicitly
+  zp = full_to_zeta_med_params( 0,0,0, p);
+  // (4\pi)^{-1/2} / (r2-q2)
+  nextAns += zp.leadsum;
+  // (2\pi)^3 \int_1^\infty dt (\gamma / (4\pi t)^{3/2}) (1/(4\pi)^{1/2})
+  // == \gamma \pi
+  nextAns -= zp.gam *M_PI;
+  // (2\pi)^3 \int_0^1 dt (\gamma / (4\pi t)^{3/2}) (1/(4\pi)^{1/2}) (e^{t q2} - 1)
+  // == (\gamma / \sqrt{4\pi}) \int_0^1 dt (\pi /t)^{3/2} (e^{t q2} - 1)
+  F.function = &integral_zeta_00_sub;
+  gsl_integration_qag(&F, 0., 1., epsabs, epsrel, limit, 1, w, &result, &abserr);
+  nextAns += zp.iphase *result;
+  // (2\pi)^3 (1/(2\pi)^{3}) (4\pi)^{-1/2} \int_0^1 dt e^{-t (r2-q2)}
+  // == (4\pi)^{-1/2} (e^{-(r2-q2)} - 1) / (r2-q2)
+  nextAns -= (1. -gsl_sf_exp(-zp.r2q2)) /zp.r2q2 /(2.*M_SQRTPI);
+  // remaining term of \int_1^\infty is an exact cancellation by definition
+
+  prevAns = nextAns;
+
+  F.function = &integral_zeta_00_med; // use unsubtracted version for everything else
+  while ( i < p.q2 || relerr_check( prevAns, nextAns) || (i % 4 != 0) || skipP2 ) {
+    //std::cout << "iteration " <<i <<std::endl;
+    prevAns = nextAns; skipP2 = false;
+    auto vecCombos = all_combos( i); // get a list of all vector combos for this choice
+
+    if ( vecCombos.size() == 0) { skipP2 = true; }
+    for ( auto vecc = vecCombos.begin(); vecc != vecCombos.end(); vecc++ ) {
+      auto vecPerms = all_permutations( *vecc);
+      for ( auto vecp = vecPerms.begin(); vecp != vecPerms.end(); vecp++ ) {
+
+        zp = full_to_zeta_med_params( (*vecp)[0], (*vecp)[1], (*vecp)[2], p);
+
+        if ( zp.r2 < p.q2) {
+          gsl_integration_qag(&F, 0., 1., epsabs, epsrel, limit, 1, w, &result, &abserr);
+          nextAns -= (1. -gsl_sf_exp(-zp.r2q2)) /zp.r2q2 /(2.*M_SQRTPI);
+          nextAns += zp.leadsum;
+          nextAns += zp.iphase *result;
+        }
+        else {
+          gsl_integration_qag(&F, 0., 1., epsabs, epsrel, limit, 1, w, &result, &abserr);
+          nextAns += gsl_sf_exp(-zp.r2q2) /zp.r2q2 /(2.*M_SQRTPI);
+          nextAns += zp.iphase *result;
+        }
+      }
+    }
+
+    //std::cout << "skipP2 : " << skipP2 << std::endl;
+    //std::cout << "ans: " << prevAns << ", " << nextAns << std::endl;
+    //std::cout << "err: " << RELERR << " < "
+    //  << abs(prevAns - nextAns)/abs(nextAns) << std::endl;
+
+    i++;
+    assert(i < 100);
+  }
+
+  return nextAns;
 }
 
 #endif
