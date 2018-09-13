@@ -12,6 +12,7 @@
 //#include <gsl/gsl_sf_result.h> // for better error handling on GSL, not needed
 
 #include "spherical.h"
+#include "vector_sorting.h"
 
 #define RELERR 1e-8 // relative error to compute zeta functions to
 

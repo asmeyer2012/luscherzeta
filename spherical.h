@@ -229,7 +229,7 @@ void associated_legendre::increment_max_order(bool doPrint) {
 class spherical_harmonic
 {
   public:
-  spherical_harmonic(int maxOrder);
+  spherical_harmonic(int maxOrder=0);
   gsl_complex evaluate( int l, int m, double x0, double x1, double x2);
   private:
   associated_legendre *aleg;
