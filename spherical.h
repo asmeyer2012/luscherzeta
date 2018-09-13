@@ -64,6 +64,7 @@ class associated_legendre_poly
    associated_legendre_poly copy() { return associated_legendre_poly( this->poly); }
    associated_legendre_poly copy_z_plus_1();
    associated_legendre_poly copy_q_plus_1();
+   associated_legendre_poly* copynew();
    std::string as_string();
    void add(poly_term term);
    void add(associated_legendre_poly alp);
@@ -91,6 +92,11 @@ associated_legendre_poly associated_legendre_poly::copy_q_plus_1() {
     p0.add( term0->copy_q_plus_1());
   }
   return p0;
+}
+
+associated_legendre_poly* associated_legendre_poly::copynew() {
+  associated_legendre_poly* pnew = new associated_legendre_poly( this->poly);
+  return pnew;
 }
 
 std::string associated_legendre_poly::as_string() {
@@ -149,6 +155,7 @@ class associated_legendre
   public:
   associated_legendre(int maxOrder);
   associated_legendre_poly get(int l, int m);
+  associated_legendre_poly* getnew(int l, int m);
   private:
   std::vector< associated_legendre_pair> poly;
   associated_legendre_poly get_poly(int l, int m);
@@ -175,6 +182,13 @@ associated_legendre_poly associated_legendre::get(int l, int m) {
   assert(abs(m) < l+1);
   while(l > this->maxOrder) { this->increment_max_order(); }
   return this->poly[l*l + l - m].ascleg.copy();
+}
+
+// safe version, allocate memory for it too
+associated_legendre_poly* associated_legendre::getnew(int l, int m) {
+  assert(abs(m) < l+1);
+  while(l > this->maxOrder) { this->increment_max_order(); }
+  return this->poly[l*l + l - m].ascleg.copynew();
 }
 
 // handle version, for manipulation
@@ -225,6 +239,7 @@ class spherical_harmonic
 {
   public:
   spherical_harmonic(int maxOrder);
+  //~spherical_harmonic();
   gsl_complex evaluate( int l, int m, double x0, double x1, double x2);
   private:
   associated_legendre *aleg;
@@ -242,9 +257,20 @@ spherical_harmonic::spherical_harmonic(int maxOrder) {
   this->load_poly(0,0);
 }
 
+//spherical_harmonic::~spherical_harmonic() {
+//  delete this->aleg;
+//}
+
 void spherical_harmonic::load_poly( int l, int m) {
   if (l != this->lnow || m != this->mnow) {
+   std::cout << "loading poly " <<l <<"," <<m <<std::endl;
+   //if (alpoly) { delete alpoly; }
+   //std::cout << "allocating poly " <<l <<"," <<m <<std::endl;
+   //alpoly = aleg->getnew(l,m);
    *alpoly = aleg->get(l,m);
+   std::cout << "done loading poly " <<l <<"," <<m <<std::endl;
+   this->lnow = l;
+   this->mnow = m;
   }
 }
 
@@ -260,7 +286,7 @@ gsl_complex spherical_harmonic::evaluate( int l, int m, double x0, double x1, do
     return gsl_complex_mul_real( eimphi, pfac* this->alpoly->evaluate( costh) );
   }
   else {
-    return gsl_complex_polar( 0., 0. );
+    return gsl_complex_rect( 0., 0. );
   }
 };
 
