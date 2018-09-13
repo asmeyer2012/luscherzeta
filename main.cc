@@ -28,7 +28,6 @@ int main(int argc, char** argv)
   int maxl = 4;
   spherical_harmonic sharm(maxl);
   struct full_params fparams;
-  struct zeta_params zparams;
   fparams.dx = 0;
   fparams.dy = 1;
   fparams.dz = 1;
@@ -38,8 +37,6 @@ int main(int argc, char** argv)
   fparams.l = 0;
   fparams.m = 0;
 
-  std::cout << "zeta 00 : " << full_zeta_med_00 (fparams) << std::endl;
-  std::cout << "zeta 00 : " << full_zeta_00 (fparams) << std::endl;
   for (int l = 0; l < maxl+1; l++) {
     fparams.l = l;
     for (int m = -l; m < l+1; m++) {
