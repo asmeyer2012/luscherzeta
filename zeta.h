@@ -22,8 +22,6 @@ double erfi( double q2)
 // check relative error of two values
 bool relerr_check (double prevVal, double nextVal)
 { return ( RELERR *abs( nextVal) < abs( nextVal -prevVal) ); }
-
-// check relative error of two complex values
 bool relerr_check (gsl_complex prevVal, gsl_complex nextVal)
 { return ( RELERR *gsl_complex_abs2( nextVal)
    < gsl_complex_abs2( gsl_complex_sub(nextVal,prevVal)) ); }
@@ -31,6 +29,7 @@ bool relerr_check (gsl_complex prevVal, gsl_complex nextVal)
 // full parameters to get all prefactors correct
 struct full_params { int dx; int dy; int dz; double q2; double gam;
  int l; int m; spherical_harmonic * sharm; };
+
 // just compute the parameters that are needed
 struct zeta_params {
  double r2q2;        // r2 - q2, for consistency checks
@@ -316,7 +315,6 @@ double full_zeta_med_00 (struct full_params p)
   return nextAns;
 }
 
-// just compute the parameters that are needed
 struct zeta_lm_params {
  double r2q2;         // r2 - q2
  double r2;           // r2
@@ -326,7 +324,6 @@ struct zeta_lm_params {
  gsl_complex leadsum; // leading sum term
  gsl_complex iphase;  // prefactor and phase on integral
  gsl_complex rlYlm;   // factor of r^l Y_{lm}(\hat{r})
- //gsl_complex gnlYlm;  // factor of k^l Y_{lm}(\hat{k}) for \vec{k} = 2\pi \hat{\gamma}.\vec{n}
  int l;               // total angular momentum quantum number
  int m;               // z-component angular momentum quantum number
  };
@@ -425,7 +422,6 @@ double integral_zeta_lm(double x, void * p)
   double q2 = (params->q2);
   double ngam2 = (params->ngam2);
   int l = (params->l);
-  // underflows are okay, just give 0. good enough.
   try {
     // (\pi/t)^{3/2} (1/2t)^{l} exp{t q.q - n.n/t}
     return pow( M_PI/x, 1.5) *gsl_pow_int( .5/x, l) *gsl_sf_exp(q2*x -ngam2/x);

@@ -64,7 +64,6 @@ class associated_legendre_poly
    associated_legendre_poly copy() { return associated_legendre_poly( this->poly); }
    associated_legendre_poly copy_z_plus_1();
    associated_legendre_poly copy_q_plus_1();
-   associated_legendre_poly* copynew();
    std::string as_string();
    void add(poly_term term);
    void add(associated_legendre_poly alp);
@@ -92,11 +91,6 @@ associated_legendre_poly associated_legendre_poly::copy_q_plus_1() {
     p0.add( term0->copy_q_plus_1());
   }
   return p0;
-}
-
-associated_legendre_poly* associated_legendre_poly::copynew() {
-  associated_legendre_poly* pnew = new associated_legendre_poly( this->poly);
-  return pnew;
 }
 
 std::string associated_legendre_poly::as_string() {
@@ -153,9 +147,8 @@ struct associated_legendre_pair { int l; int m; associated_legendre_poly ascleg;
 class associated_legendre
 {
   public:
-  associated_legendre(int maxOrder);
+  associated_legendre(int maxOrder = 0, bool doPrint=false);
   associated_legendre_poly get(int l, int m);
-  associated_legendre_poly* getnew(int l, int m);
   private:
   std::vector< associated_legendre_pair> poly;
   associated_legendre_poly get_poly(int l, int m);
@@ -163,18 +156,19 @@ class associated_legendre
   void sumrule_lplus1(int l);
   void sumrule_mplus1(int l,int m);
   void sumrule_minusm(int l,int m);
-  void increment_max_order();
+  void increment_max_order(bool doPrint=false);
 };
 
-associated_legendre::associated_legendre(int maxOrder = 0) {
-  std::cout << "initializing associated_legendre with maxOrder = " << maxOrder << std::endl;
+associated_legendre::associated_legendre(int maxOrder, bool doPrint) {
+  if (doPrint) {
+    std::cout << "initializing associated_legendre with maxOrder = " << maxOrder << std::endl;
+  }
   // fix the 0-order legendre polynomial
   this->maxOrder = 0;
   associated_legendre_poly p0({ poly_term(0,0,1.) });
   associated_legendre_pair alpair = { 0,0,p0 };
   this->poly.push_back(alpair);
-  while(maxOrder > this->maxOrder) { this->increment_max_order(); }
-  //this->maxOrder = maxOrder;
+  while(maxOrder > this->maxOrder) { this->increment_max_order(doPrint); }
 }
 
 // safe version
@@ -182,13 +176,6 @@ associated_legendre_poly associated_legendre::get(int l, int m) {
   assert(abs(m) < l+1);
   while(l > this->maxOrder) { this->increment_max_order(); }
   return this->poly[l*l + l - m].ascleg.copy();
-}
-
-// safe version, allocate memory for it too
-associated_legendre_poly* associated_legendre::getnew(int l, int m) {
-  assert(abs(m) < l+1);
-  while(l > this->maxOrder) { this->increment_max_order(); }
-  return this->poly[l*l + l - m].ascleg.copynew();
 }
 
 // handle version, for manipulation
@@ -222,28 +209,31 @@ void associated_legendre::sumrule_minusm(int l, int m) {
   this->poly.push_back( {l+1, m, pl0});
 }
 
-void associated_legendre::increment_max_order() {
-  std::cout << "building legendre polynomials of order " << this->maxOrder+1 << std::endl;
+// build the legendre polynomials for the next highest order
+void associated_legendre::increment_max_order(bool doPrint) {
+  if (doPrint) {
+    std::cout << "building legendre polynomials of order " << this->maxOrder+1 << std::endl;
+  }
   int l = this->maxOrder;
   for (int m=l+1; m > -l-2; m--) {
-    std::cout << "l,m = " << l+1 <<","<< m << std::endl;
+    if (doPrint) { std::cout << "l,m = " << l+1 <<","<< m << std::endl; }
     if      (m == l+1) { this->sumrule_lplus1(l);   }
     else if (m >= 0  ) { this->sumrule_mplus1(l,m); }
     else               { this->sumrule_minusm(l,m); }
-    //std::cout << this->get_poly(l+1,m).as_string() << std::endl;
+    if (doPrint) { std::cout << this->get_poly(l+1,m).as_string() << std::endl; }
   }
   this->maxOrder++;
 }
 
+// compute the spherical harmonics
 class spherical_harmonic
 {
   public:
   spherical_harmonic(int maxOrder);
-  //~spherical_harmonic();
   gsl_complex evaluate( int l, int m, double x0, double x1, double x2);
   private:
   associated_legendre *aleg;
-  associated_legendre_poly *alpoly;
+  associated_legendre_poly alpoly;
   int lnow,mnow;
   void load_poly( int l, int m);
   double Ylm_cosTheta(double x0, double x1, double x2);
@@ -257,18 +247,9 @@ spherical_harmonic::spherical_harmonic(int maxOrder) {
   this->load_poly(0,0);
 }
 
-//spherical_harmonic::~spherical_harmonic() {
-//  delete this->aleg;
-//}
-
 void spherical_harmonic::load_poly( int l, int m) {
   if (l != this->lnow || m != this->mnow) {
-   std::cout << "loading poly " <<l <<"," <<m <<std::endl;
-   //if (alpoly) { delete alpoly; }
-   //std::cout << "allocating poly " <<l <<"," <<m <<std::endl;
-   //alpoly = aleg->getnew(l,m);
-   *alpoly = aleg->get(l,m);
-   std::cout << "done loading poly " <<l <<"," <<m <<std::endl;
+   alpoly = aleg->get(l,m);
    this->lnow = l;
    this->mnow = m;
   }
@@ -283,7 +264,7 @@ gsl_complex spherical_harmonic::evaluate( int l, int m, double x0, double x1, do
     gsl_complex eimphi = gsl_complex_polar( 1., double(m)*this->Ylm_phi( x0,x1,x2) );
     //associated_legendre_poly alpoly = aleg->get(l,m);
     this->load_poly(l,m);
-    return gsl_complex_mul_real( eimphi, pfac* this->alpoly->evaluate( costh) );
+    return gsl_complex_mul_real( eimphi, pfac* this->alpoly.evaluate( costh) );
   }
   else {
     return gsl_complex_rect( 0., 0. );
