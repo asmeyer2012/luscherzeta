@@ -277,6 +277,8 @@ double spherical_harmonic::Ylm_cosTheta(double x0, double x1, double x2) {
   return x2/x;
 }
 double spherical_harmonic::Ylm_phi(double x0, double x1, double x2) {
+  // deal with division by zero; use sign of x1 to determine sign of output
+  if (abs(x0) < 1e-8) { return ((x1 > 0) ? 1 : ((x1 < 0) ? -1 : 0))*.5*M_PI; }
   return atan(x1/x0);
 }
 

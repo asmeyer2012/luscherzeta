@@ -19,10 +19,7 @@ class czeta(object):
     self.obj = c_void_p( lib.czeta())
 
   def set_dgam(self,dx,dy,dz,gam):
-    print gam
-    print c_double(gam)
     lib.set_dgam( self.obj, c_int(dx), c_int(dy), c_int(dz), c_double(gam))
-    print "done"
 
   def set_lm(self,l,m):
     lib.set_lm(self.obj, c_int(l), c_int(m))
