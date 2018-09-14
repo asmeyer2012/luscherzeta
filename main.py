@@ -1,5 +1,5 @@
 import numpy as np
-from czeta import czeta
+from zeta.czeta import czeta
 
 print "start"
 t0 = czeta()
