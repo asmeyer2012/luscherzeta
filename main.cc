@@ -40,8 +40,8 @@ int main(int argc, char** argv)
   double reZeta,imZeta;
 
   for (int l = 0; l < maxl+1; l++) {
-    fparams.l = l;
     for (int m = -l; m < l+1; m++) {
+      fparams.l = l;
       fparams.m = m;
       cz.set_lm( fparams.l, fparams.m);
       cz.evaluate( fparams.q2, reZeta, imZeta );
@@ -49,10 +49,10 @@ int main(int argc, char** argv)
       std::cout << "zeta " <<l <<", " <<m <<": "
         << reZeta <<", " <<imZeta << std::endl;
 
-      gsl_set_error_handler( &gsl_to_c_handler ); // set my own error handler
-      std::cout << "zeta " <<l <<", " <<m <<": "
-        << gsl_complex_to_string(full_zeta_lm (fparams)) << std::endl;
-      gsl_set_error_handler( NULL );
+      //gsl_set_error_handler( &gsl_to_c_handler ); // set my own error handler
+      //std::cout << "zeta " <<l <<", " <<m <<": "
+      //  << gsl_complex_to_string(full_zeta_lm (fparams)) << std::endl;
+      //gsl_set_error_handler( NULL );
     }
   }
 

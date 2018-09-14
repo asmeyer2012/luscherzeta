@@ -1,24 +1,17 @@
 SRCS = $(wildcard *.cc)
 PROGS = $(patsubst main%.cc,exe%,$(SRCS))
 CC = g++
-#LIBS =
-#LIBS = -lgmp -lgsl
-#LIBS = -lgsl
-#LIBS = -lgsl -lblas
-#LIBS = -lgsl -L/usr/lib -lblas
-#LIBS = -lgsl -L/usr/lib/ -lblas
-#LIBS = -lgsl -L/usr/lib/libblas -lblas
 LIBS = -lgsl -L/usr/lib/libblas -lblas
 INC =
 
-all: $(PROGS)
+all: libczeta.so $(PROGS)
 
 exe: main.cc
-	${CC} -O3 -std=c++11 ${INC} -o $@ ${LIBS} $<
+	${CC} -Wall -O3 -std=c++11 ${INC} -o $@ ${LIBS} $<
+
+libczeta.so: czeta.cc
+	${CC} -Wall -shared -O3 -fPIC -std=c++11 ${INC} -o $@ ${LIBS} $<
 
 clean:
-	rm -rf exe *.o
-
-#
-#-mcmodel=large
+	rm -rf exe *.o *.so
 
