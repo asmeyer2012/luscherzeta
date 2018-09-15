@@ -126,7 +126,15 @@ double integral_zeta_lm_sub (double x, void * p)
   double q2 = (params->q2);
   double ngam2 = (params->ngam2);
   try {
-    return pow( M_PI/x, 1.5) *(gsl_sf_exp(q2*x -ngam2/x) - 1.);
+    // deal with roundoff error. thanks Taku
+    double y = q2*x -ngam2/x;
+    if(fabs(y) > 1e-4) {
+      return pow( M_PI/x, 1.5) *(gsl_sf_exp(y) - 1.0);
+    }
+    else {
+      return pow( M_PI/x, 1.5) *y*(1.+y/2*(1.+y/3.*(1.+y/4.*(1.+y/5.*(1.+y/6)))));
+    }
+    //return pow( M_PI/x, 1.5) *(gsl_sf_exp(q2*x -ngam2/x) - 1.);
   }
   catch ( gsl_underflow_exception& e) {
     return 0.;
