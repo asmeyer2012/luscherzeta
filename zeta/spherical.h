@@ -262,7 +262,6 @@ gsl_complex spherical_harmonic::evaluate( int l, int m, double x0, double x1, do
     double costh = this->Ylm_cosTheta( x0,x1,x2);
     // exp{i m.phi}
     gsl_complex eimphi = gsl_complex_polar( 1., double(m)*this->Ylm_phi( x0,x1,x2) );
-    //associated_legendre_poly alpoly = aleg->get(l,m);
     this->load_poly(l,m);
     return gsl_complex_mul_real( eimphi, pfac* this->alpoly.evaluate( costh) );
   }
@@ -279,7 +278,7 @@ double spherical_harmonic::Ylm_cosTheta(double x0, double x1, double x2) {
 double spherical_harmonic::Ylm_phi(double x0, double x1, double x2) {
   // deal with division by zero; use sign of x1 to determine sign of output
   if (abs(x0) < 1e-8) { return ((x1 > 0) ? 1 : ((x1 < 0) ? -1 : 0))*.5*M_PI; }
-  return atan(x1/x0);
+  return atan2(x1,x0); // atan2 does correct quadrant for x,y
 }
 
 #endif
