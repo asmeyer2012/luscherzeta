@@ -1,5 +1,5 @@
 import ctypes
-from ctypes import c_int,c_double,c_void_p
+from ctypes import c_bool,c_int,c_double,c_void_p
 #import numpy as np
 
 lib = ctypes.cdll.LoadLibrary('./zeta/libczeta.so')
@@ -7,12 +7,12 @@ lib = ctypes.cdll.LoadLibrary('./zeta/libczeta.so')
 lib.czeta.argtypes = [ ]
 lib.set_dgam.argtypes = [ c_void_p, c_int, c_int, c_int, c_double]
 lib.set_lm.argtypes = [ c_void_p, c_int, c_int]
-lib.zeta_eval.argtypes = [ c_void_p, c_double]
+lib.zeta_eval.argtypes = [ c_void_p, c_double, ctypes.POINTER(c_double)]
 ## uppercase POINTER is type, lowercase is object
 lib.czeta.restype = c_void_p
 lib.set_dgam.restype = None
 lib.set_lm.restype = None
-lib.zeta_eval.restype = ctypes.POINTER(c_double)
+lib.zeta_eval.restype = c_bool
 
 class czeta(object):
   def __init__(self):
@@ -25,6 +25,10 @@ class czeta(object):
     lib.set_lm(self.obj, c_int(l), c_int(m))
 
   def evaluate(self,q2):
-    dout = lib.zeta_eval(self.obj,c_double(q2))
-    return complex(dout[0],dout[1])
+    dout = (c_double*2)()
+    bout = lib.zeta_eval(self.obj,c_double(q2),dout)
+    if bout:
+      return complex(dout[0],dout[1])
+    else:
+      raise ValueError("GSL Error")
 

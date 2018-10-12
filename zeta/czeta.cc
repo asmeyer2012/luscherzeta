@@ -31,9 +31,9 @@ cxxzeta::cxxzeta() {
  this->sharm = spherical_harmonic();
  this->p.sharm = &(this->sharm);
  this->p.dx = 0;
- this->p.dy = 1;
- this->p.dz = 1;
- this->p.gam = 1.1;
+ this->p.dy = 0;
+ this->p.dz = 0;
+ this->p.gam = 1.0;
  this->p.l = 0;
  this->p.m = 0;
  this->p.q2 = 1e-1;
@@ -62,7 +62,6 @@ void cxxzeta::evaluate(double q2, double& reZeta, double& imZeta)
 }
 
 // provide external C definitions, callable by python with ctypes
-// TODO: change from void* back to cxxzeta*
 extern "C" {
     void* czeta() { return ((void*) new cxxzeta()); }
     void set_dgam(void* cz, int dx, int dy, int dz, double gam) {
@@ -71,12 +70,19 @@ extern "C" {
       ((cxxzeta*)cz)->set_lm( l,m); }
     //void zeta_eval(cxxzeta* cz, double q2, double& reZeta, double& imZeta) {
     //  cz->evaluate( q2, reZeta, imZeta); }
-    double* zeta_eval(void* cz, double q2) {
+    bool zeta_eval(void* cz, double q2, double *out) {
       double reZeta,imZeta;
-      ((cxxzeta*)cz)->evaluate( q2, reZeta, imZeta);
-      double* out = new double[2];
-      out[0] = reZeta; out[1] = imZeta;
-      return out;
+      try {
+        ((cxxzeta*)cz)->evaluate( q2, reZeta, imZeta);
+        out[0] = reZeta; out[1] = imZeta;
+        return true;
+      } catch ( gsl_underflow_exception& e ) {
+        out[0] = 0.; out[1] = 0.;
+        return true;
+      } catch ( gsl_other_exception& e ) {
+        out[0] = 0.; out[1] = 0.;
+        return false;
+      }
     }
 }
 
