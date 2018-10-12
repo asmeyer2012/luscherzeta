@@ -29,6 +29,7 @@ from sympy.physics.wigner import gaunt
 #    *xSum(l0,l1,l2,m0,m1,m2)
 
 ## clebsch-gordan coefficient calculation
+## gaunt is \propto WigJ * WigJ
 def tensorC(l0,l1,l2,m0,m1,m2):
   #iphase = cmath.exp( complex(0., .5*np.pi *(l0-l1+l2)) )
   #return np.power(-1.,m2) *np.sqrt( (2.*l0+1) *(2.*l1+1) *(2.*l2+1) ) \
@@ -38,14 +39,21 @@ def tensorC(l0,l1,l2,m0,m1,m2):
 
 ## if abs2 is less than some tolerance, return 0. of the same type
 def isSmall(x):
-  if abs(x) < 1e-8:
+  if np.abs(x) < 1e-8:
     return True
   return False
 
 ## if abs2 is less than some tolerance, return 0. of the same type
 def chop(x):
-  if abs(x) < 1e-8:
-    return x*0.
+  if isinstance(x,np.ndarray):
+    return np.array([ chop(y) for y in x ])
+  if isinstance(x,complex):
+    rx = ( 0. if isSmall(np.real(x)) else np.real(x) )
+    ix = ( 0. if isSmall(np.imag(x)) else np.imag(x) )
+    return complex(rx,ix)
+  else:
+    if isSmall(x):
+      return x*0.
   return x
 
 ## computation of matrix elements

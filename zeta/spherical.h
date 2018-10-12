@@ -22,7 +22,7 @@ class poly_term
    double evaluate(double z);
    int get_z()   { return this->zexp; }
    int get_q()   { return this->qexp; }
-   int get_fac() { return this->fac;  }
+   double get_fac() { return this->fac;  }
 
   private:
    double fac; // prefactor
@@ -231,6 +231,7 @@ class spherical_harmonic
   public:
   spherical_harmonic(int maxOrder=0);
   gsl_complex evaluate( int l, int m, double x0, double x1, double x2);
+  std::string as_string( int l, int m);
   private:
   associated_legendre *aleg;
   associated_legendre_poly alpoly;
@@ -249,10 +250,15 @@ spherical_harmonic::spherical_harmonic(int maxOrder) {
 
 void spherical_harmonic::load_poly( int l, int m) {
   if (l != this->lnow || m != this->mnow) {
-   alpoly = aleg->get(l,m);
+   this->alpoly = aleg->get(l,m);
    this->lnow = l;
    this->mnow = m;
   }
+}
+
+std::string spherical_harmonic::as_string(int l, int m) {
+  associated_legendre_poly alpoly = aleg->get(l,m);
+  return alpoly.as_string();
 }
 
 gsl_complex spherical_harmonic::evaluate( int l, int m, double x0, double x1, double x2) {

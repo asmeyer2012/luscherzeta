@@ -36,6 +36,7 @@ from matrix_element import *
 #f.write(fullString)
 #f.close()
 
+print "starting"
 t0 = czeta()
 
 d = [0,0,0]
@@ -43,6 +44,8 @@ gam = 1.0
 t0.set_dgam(d[0],d[1],d[2],gam)
 t0.set_lm(1,0)
 
+#q2 = -1e3
+#t0.evaluate(q2)
 q2 = .9
 lmax = 2 ## maximum angular momentum to consider
 lmax2 = (lmax+1)*(lmax+1) ## maximum index of matrix
@@ -62,7 +65,16 @@ for i0 in range(lmax2):
   l1,m1 = Mitolm(i1)
   M[i0,i1] = matrixElem(t0,l0,l1,m0,m1,q2)
 
-print M
+### for consistency checks
+#z00 = chop(M[0,0])
+#z40 = chop(M[4,8])*7./15.
+### the following must all be the same
+#print  chop(M[4, 8])*7./15.
+#print -chop(M[2,12])*7./(4.*np.sqrt(21.))
+#print  chop(M[1,11])*7./(3.*np.sqrt(14.))
+#print  chop(M[3, 9])*7./(1.*np.sqrt(210.))
+
+print chop(M)
 
 #for l in range(5):
 # for m in range(-l,l+1):
