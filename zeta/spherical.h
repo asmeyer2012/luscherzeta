@@ -283,7 +283,7 @@ double spherical_harmonic::Ylm_cosTheta(double x0, double x1, double x2) {
 }
 double spherical_harmonic::Ylm_phi(double x0, double x1, double x2) {
   // deal with division by zero; use sign of x1 to determine sign of output
-  if (abs(x0) < 1e-8) { return ((x1 > 0) ? 1 : ((x1 < 0) ? -1 : 0))*.5*M_PI; }
+  if (abs((long long) x0) < 1e-8) { return ((x1 > 0) ? 1 : ((x1 < 0) ? -1 : 0))*.5*M_PI; }
   return atan2(x1,x0); // atan2 does correct quadrant for x,y
 }
 
