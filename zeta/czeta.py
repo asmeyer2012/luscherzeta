@@ -2,7 +2,7 @@ import ctypes
 from ctypes import c_bool,c_int,c_double,c_void_p
 #import numpy as np
 
-lib = ctypes.cdll.LoadLibrary('./zeta/libczeta.so')
+lib = ctypes.cdll.LoadLibrary('/home/dan/luscherzeta/zeta/libczeta.so')
 
 lib.czeta.argtypes = [ ]
 lib.set_dgam.argtypes = [ c_void_p, c_int, c_int, c_int, c_double]
