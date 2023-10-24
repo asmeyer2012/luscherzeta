@@ -11,7 +11,7 @@ INC =
 all: libczeta.so $(PROGS)
 
 exe: main.cc
-	${CC} -Wall -shared -O3 -fPIC -std=c++11 -o $@ $< ${INC} ${LIBS}
+	${CC} -Wall -O3 -std=c++11 -o $@ $< ${INC} ${LIBS}
 
 libczeta.so: czeta.cc
 	${CC} -Wall -shared -O3 -fPIC -std=c++11 -o $@ $< ${INC} ${LIBS}

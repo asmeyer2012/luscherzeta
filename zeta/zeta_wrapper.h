@@ -21,9 +21,9 @@
 class czeta {
  public:
  czeta();
- void set_dgam(int dx, int dy, int dz, double gam);
- void set_lm(int l, int m);
- void evaluate(double q2, double& reZeta, double& imZeta);
+ void set_svec_gamma( double sx, double sy, double sz, double gamma);
+ void set_lm( int l, int m);
+ void evaluate( double u2, double& reZeta, double& imZeta);
  private:
  spherical_harmonic sharm;
  struct full_params p;
@@ -32,30 +32,30 @@ class czeta {
 czeta::czeta() {
  this->sharm = spherical_harmonic();
  this->p.sharm = &(this->sharm);
- this->p.dx = 0;
- this->p.dy = 1;
- this->p.dz = 1;
- this->p.gam = 1.1;
+ this->p.sx = 0.;
+ this->p.sy = 1.;
+ this->p.sz = 1.;
+ this->p.gamma = 1.1;
  this->p.l = 0;
  this->p.m = 0;
- this->p.q2 = 1e-1;
+ this->p.u2 = 1e-1;
 }
 
-void czeta::set_dgam(int dx, int dy, int dz, double gam) {
- this->p.dx = dx;
- this->p.dy = dy;
- this->p.dz = dz;
- this->p.gam = gam;
+void czeta::set_svec_gamma( double sx, double sy, double sz, double gamma) {
+ this->p.sx = sx;
+ this->p.sy = sy;
+ this->p.sz = sz;
+ this->p.gamma = gamma;
 }
 
-void czeta::set_lm(int l, int m) {
+void czeta::set_lm( int l, int m) {
  this->p.l = l;
  this->p.m = m;
 }
 
-void czeta::evaluate(double q2, double& reZeta, double& imZeta)
+void czeta::evaluate( double u2, double& reZeta, double& imZeta)
 {
-  this->p.q2 = q2;
+  this->p.u2 = u2;
   gsl_set_error_handler( &gsl_to_c_handler ); // set my own error handler
   gsl_complex result = full_zeta_lm( this->p );
   reZeta = GSL_REAL(result);

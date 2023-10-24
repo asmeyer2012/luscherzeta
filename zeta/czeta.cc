@@ -19,7 +19,7 @@
 class cxxzeta {
  public:
  cxxzeta();
- void set_dgam(int dx, int dy, int dz, double gam);
+ void set_svec_gamma(double sx, double sy, double sz, double gamma);
  void set_lm(int l, int m);
  void evaluate(double q2, double& reZeta, double& imZeta);
  private:
@@ -30,20 +30,20 @@ class cxxzeta {
 cxxzeta::cxxzeta() {
  this->sharm = spherical_harmonic();
  this->p.sharm = &(this->sharm);
- this->p.dx = 0;
- this->p.dy = 0;
- this->p.dz = 0;
- this->p.gam = 1.0;
+ this->p.sx = 0.;
+ this->p.sy = 0.;
+ this->p.sz = 0.;
+ this->p.gamma = 1.0;
  this->p.l = 0;
  this->p.m = 0;
- this->p.q2 = 1e-1;
+ this->p.u2 = 1e-1;
 }
 
-void cxxzeta::set_dgam(int dx, int dy, int dz, double gam) {
- this->p.dx = dx;
- this->p.dy = dy;
- this->p.dz = dz;
- this->p.gam = gam;
+void cxxzeta::set_svec_gamma(double sx, double sy, double sz, double gamma) {
+ this->p.sx = sx;
+ this->p.sy = sy;
+ this->p.sz = sz;
+ this->p.gamma = gamma;
 }
 
 void cxxzeta::set_lm(int l, int m) {
@@ -51,9 +51,9 @@ void cxxzeta::set_lm(int l, int m) {
  this->p.m = m;
 }
 
-void cxxzeta::evaluate(double q2, double& reZeta, double& imZeta)
+void cxxzeta::evaluate(double u2, double& reZeta, double& imZeta)
 {
-  this->p.q2 = q2;
+  this->p.u2 = u2;
   gsl_set_error_handler( &gsl_to_c_handler ); // set my own error handler
   gsl_complex result = full_zeta_lm( this->p );
   reZeta = GSL_REAL(result);
@@ -64,16 +64,16 @@ void cxxzeta::evaluate(double q2, double& reZeta, double& imZeta)
 // provide external C definitions, callable by python with ctypes
 extern "C" {
     void* czeta() { return ((void*) new cxxzeta()); }
-    void set_dgam(void* cz, int dx, int dy, int dz, double gam) {
-      ((cxxzeta*)cz)->set_dgam( dx,dy,dz,gam); }
+    void set_svec_gamma(void* cz, double sx, double sy, double sz, double gamma) {
+      ((cxxzeta*)cz)->set_svec_gamma( sx, sy, sz, gamma); }
     void set_lm(void* cz, int l, int m) {
       ((cxxzeta*)cz)->set_lm( l,m); }
     //void zeta_eval(cxxzeta* cz, double q2, double& reZeta, double& imZeta) {
     //  cz->evaluate( q2, reZeta, imZeta); }
-    bool zeta_eval(void* cz, double q2, double *out) {
-      double reZeta,imZeta;
+    bool zeta_eval(void* cz, double u2, double *out) {
+      double reZeta, imZeta;
       try {
-        ((cxxzeta*)cz)->evaluate( q2, reZeta, imZeta);
+        ((cxxzeta*)cz)->evaluate( u2, reZeta, imZeta);
         out[0] = reZeta; out[1] = imZeta;
         return true;
       } catch ( gsl_underflow_exception& e ) {
