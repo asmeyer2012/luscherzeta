@@ -206,7 +206,6 @@ gsl_complex full_zeta_lm (struct full_params p)
   double abserr = 0.;
   double result = 0.;
   size_t limit = 1000;
-  //bool skipP2 = false;
   struct zeta_lm_params zp;
 
   gsl_function F;
@@ -245,13 +244,10 @@ gsl_complex full_zeta_lm (struct full_params p)
   // sum the contributions of the remaining (nx,ny,nz) != 0 tuples
   // use unsubtracted version for everything else
   F.function = &integral_zeta_lm;
-  //while ( i < p.u2 || relerr_check( prevAns, nextAns) || (i % 4 != 0) || skipP2 )
   while ( i < p.u2 || relerr_check( prevAns, nextAns) || (i % 4 != 0) ) {
     prevAns = nextAns;
-    //skipP2 = false;
     auto vecCombos = all_combos( i); // get a list of all vector combos for this choice
 
-    //if ( vecCombos.size() == 0) { skipP2 = true; }
     for ( auto vecc = vecCombos.begin(); vecc != vecCombos.end(); vecc++ ) {
       auto vecPerms = all_permutations( *vecc);
       for ( auto vecp = vecPerms.begin(); vecp != vecPerms.end(); vecp++ ) {
