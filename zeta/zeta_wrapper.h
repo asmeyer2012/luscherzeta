@@ -33,9 +33,9 @@ czeta::czeta() {
  this->sharm = spherical_harmonic();
  this->p.sharm = &(this->sharm);
  this->p.sx = 0.;
- this->p.sy = 1.;
- this->p.sz = 1.;
- this->p.gamma = 1.1;
+ this->p.sy = 0.;
+ this->p.sz = 0.;
+ this->p.gamma = 1.0;
  this->p.l = 0;
  this->p.m = 0;
  this->p.u2 = 1e-1;

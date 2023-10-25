@@ -1,5 +1,3 @@
-//#include <algorithm> // std::count
-//#include <assert.h>
 #include <cmath>
 #include <cstdlib>
 #include <iostream>
@@ -7,7 +5,6 @@
 #include <float.h> // contains definitions of FLT_EPSILON and DBL_EPSILON
 
 #include "gsl_exception_handler.h"
-#include "spherical.h"
 #include "zeta.h"
 #include "zeta_wrapper.h"
 
@@ -114,22 +111,16 @@ bool ratio_test_com( czeta &cz, double u2) {
 
 int main(int argc, char** argv)
 {
-  double reZeta, imZeta;
   int maxl = 4;
-  struct full_params fparams;
-  spherical_harmonic sharm( maxl);
+  double reZeta, imZeta;
   czeta cz;
 
   // initialize czeta calculator
-  fparams.sharm = &sharm;
-  fparams.l = 0;
-  fparams.m = 0;
-  fparams.sx = 0.;
-  fparams.sy = 0.;
-  fparams.sz = 0.;
-  fparams.u2 = .9;
-  fparams.gamma = 1.0;
-  cz.set_svec_gamma( fparams.sx, fparams.sy, fparams.sz, fparams.gamma);
+  double sx = 0.;
+  double sy = 0.;
+  double sz = 0.;
+  double gamma = 1.0;
+  cz.set_svec_gamma( sx, sy, sz, gamma);
 
   bool test_success = true;
 
@@ -142,19 +133,17 @@ int main(int argc, char** argv)
     std::cout <<"ratio_test_com failed" <<std::endl;
   }
 
-  fparams.sx = 0.;
-  fparams.sy = 1.;
-  fparams.sz = 1.;
-  fparams.u2 = .9;
-  fparams.gamma = 1.1;
-  cz.set_svec_gamma( fparams.sx, fparams.sy, fparams.sz, fparams.gamma);
+  sx = 0.;
+  sy = 1.;
+  sz = 1.;
+  gamma = 1.1;
+  cz.set_svec_gamma( sx, sy, sz, gamma);
 
+  double u2 = .9;
   for (int l = 0; l < maxl+1; l++) {
     for (int m = -l; m < l+1; m++) {
-      fparams.l = l;
-      fparams.m = m;
-      cz.set_lm( fparams.l, fparams.m);
-      cz.evaluate( fparams.u2, reZeta, imZeta );
+      cz.set_lm( l, m);
+      cz.evaluate( u2, reZeta, imZeta );
 
       std::cout << "zeta " <<l <<", " <<m <<": "
         << reZeta <<", " <<imZeta << std::endl;
