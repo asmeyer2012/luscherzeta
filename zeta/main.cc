@@ -1,8 +1,10 @@
 //#include <algorithm> // std::count
 //#include <assert.h>
+#include <cmath>
 #include <cstdlib>
 #include <iostream>
 #include <sstream>
+#include <float.h> // contains definitions of FLT_EPSILON and DBL_EPSILON
 
 #include "gsl_exception_handler.h"
 #include "spherical.h"
@@ -13,6 +15,26 @@
 
 using namespace std;
 
+/// Absolute size comparison against 0 for double
+bool is_small( double x) { return fabs( x) < 16384 *DBL_EPSILON; }
+
+/// Compare if two doubles are close in value to each other.
+/**
+  Will return true for numbers that share the first 10 significant digits
+  or if both numbers are below about \f$10^{-12}\f$.
+*/
+bool is_close(
+  double a, double b,
+  double epsilon = 128 * DBL_EPSILON, double abs_th = 16384 *DBL_EPSILON)
+{
+  if (a == b) return true;
+
+  auto diff = abs( a -b);
+  auto norm = min( (abs(a) + abs(b)), std::numeric_limits<double>::max());
+  // or even faster: std::min(std::abs(a + b), std::numeric_limits<float>::max());
+  return diff < max( abs_th, epsilon * norm);
+}
+
 std::string gsl_complex_to_string( gsl_complex val )
 {
   stringstream sout;
@@ -20,24 +42,112 @@ std::string gsl_complex_to_string( gsl_complex val )
   return sout.str();
 }
 
+// code checks whether (real) eval of zeta function in center of mass gives expected ratios
+// imaginary parts are assumed to be identically zero
+bool ratio_test_com_single(
+    czeta &cz, double u2, double ratio_val_re,
+    int l0, int m0, int l1, int m1) {
+
+  // initialize fparams
+  cz.set_svec_gamma( 0., 0., 0., 1.);
+
+  // for dumping results
+  double reZeta0, imZeta0;
+  double reZeta1, imZeta1;
+
+  // test some specific ratios of zeta functions
+  cz.set_lm( l0, m0);
+  cz.evaluate( u2, reZeta0, imZeta0 );
+  cz.set_lm( l1, m1);
+  cz.evaluate( u2, reZeta1, imZeta1 );
+  bool test_success = (
+    is_close( reZeta0/reZeta1, ratio_val_re)
+    && is_small( imZeta0) && is_small( imZeta1) );
+
+  if (!test_success) {
+    if (!is_small( imZeta0)) {
+      std::cout << "imaginary test failed for eval 0: " <<imZeta0 <<"!=" <<0. <<std::endl;
+    } else if (!is_small( imZeta1)) {
+      std::cout << "imaginary test failed for eval 1: " <<imZeta1 <<"!=" <<0. <<std::endl;
+    } else {
+      std::cout << "test ratio failed: " <<reZeta0 /reZeta1 <<"!=" <<ratio_val_re <<std::endl;
+    }
+  }
+
+  return test_success;
+}
+
+bool ratio_test_com( czeta &cz, double u2) {
+
+  bool test_success = true;
+
+  if (test_success) {
+    test_success = ratio_test_com_single( cz, u2, sqrt(70.)/14., 4, 4, 4, 0);
+    if (!test_success) {
+      std::cout <<"z44/z40 test failed" <<std::endl;
+    }
+  }
+
+  if (test_success) {
+    test_success = ratio_test_com_single( cz, u2, -sqrt(14.)/2., 6, 4, 6, 0);
+    if (!test_success) {
+      std::cout <<"z64/z60 test failed" <<std::endl;
+    }
+  }
+
+  if (test_success) {
+    test_success = ratio_test_com_single( cz, u2, sqrt(154.)/33., 8, 4, 8, 0);
+    if (!test_success) {
+      std::cout <<"z84/z80 test failed" <<std::endl;
+    }
+  }
+
+  if (test_success) {
+    test_success = ratio_test_com_single( cz, u2, sqrt(1430.)/66., 8, 8, 8, 0);
+    if (!test_success) {
+      std::cout <<"z88/z80 test failed" <<std::endl;
+    }
+  }
+
+  return test_success;
+}
+
 int main(int argc, char** argv)
 {
+  double reZeta, imZeta;
   int maxl = 4;
-
-  spherical_harmonic sharm(maxl);
   struct full_params fparams;
+  spherical_harmonic sharm( maxl);
+  czeta cz;
+
+  // initialize czeta calculator
+  fparams.sharm = &sharm;
+  fparams.l = 0;
+  fparams.m = 0;
+  fparams.sx = 0.;
+  fparams.sy = 0.;
+  fparams.sz = 0.;
+  fparams.u2 = .9;
+  fparams.gamma = 1.0;
+  cz.set_svec_gamma( fparams.sx, fparams.sy, fparams.sz, fparams.gamma);
+
+  bool test_success = true;
+
+  std::cout <<"ratio_test_com tests" <<std::endl;
+  if (test_success) { test_success = ratio_test_com( cz, .9); }
+  if (test_success) { test_success = ratio_test_com( cz, .1234); }
+  if (test_success) {
+    std::cout <<"ratio_test_com passed" <<std::endl;
+  } else {
+    std::cout <<"ratio_test_com failed" <<std::endl;
+  }
+
   fparams.sx = 0.;
   fparams.sy = 1.;
   fparams.sz = 1.;
   fparams.u2 = .9;
   fparams.gamma = 1.1;
-  fparams.sharm = &sharm;
-  fparams.l = 0;
-  fparams.m = 0;
-
-  czeta cz;
   cz.set_svec_gamma( fparams.sx, fparams.sy, fparams.sz, fparams.gamma);
-  double reZeta,imZeta;
 
   for (int l = 0; l < maxl+1; l++) {
     for (int m = -l; m < l+1; m++) {
@@ -55,57 +165,6 @@ int main(int argc, char** argv)
       //gsl_set_error_handler( NULL );
     }
   }
-
-  fparams.sx = 0.;
-  fparams.sy = 0.;
-  fparams.sz = 0.;
-  fparams.u2 = .9;
-  fparams.gamma = 1.0;
-  cz.set_svec_gamma( fparams.sx, fparams.sy, fparams.sz, fparams.gamma);
-
-  // test some specific ratios of zeta functions
-  fparams.l = 4;
-  fparams.m = 0;
-  cz.set_lm( fparams.l, fparams.m);
-  cz.evaluate( fparams.u2, reZeta, imZeta );
-  double z40 = reZeta;
-  fparams.l = 4;
-  fparams.m = 4;
-  cz.set_lm( fparams.l, fparams.m);
-  cz.evaluate( fparams.u2, reZeta, imZeta );
-  double z44 = reZeta;
-  std::cout << "test ratio (z44/z40): " <<z44/z40 <<"," <<sqrt(70.)/14. <<std::endl;
-
-  fparams.l = 6;
-  fparams.m = 0;
-  cz.set_lm( fparams.l, fparams.m);
-  cz.evaluate( fparams.u2, reZeta, imZeta );
-  double z60 = reZeta;
-  fparams.l = 6;
-  fparams.m = 4;
-  cz.set_lm( fparams.l, fparams.m);
-  cz.evaluate( fparams.u2, reZeta, imZeta );
-  double z64 = reZeta;
-  std::cout << "test ratio (z64/z60): " <<z64/z60 <<"," <<-sqrt(14.)/2. <<std::endl;
-
-  fparams.l = 8;
-  fparams.m = 0;
-  cz.set_lm( fparams.l, fparams.m);
-  cz.evaluate( fparams.u2, reZeta, imZeta );
-  double z80 = reZeta;
-  fparams.l = 8;
-  fparams.m = 4;
-  cz.set_lm( fparams.l, fparams.m);
-  cz.evaluate( fparams.u2, reZeta, imZeta );
-  double z84 = reZeta;
-  std::cout << "test ratio (z84/z80): " <<z84/z80 <<"," <<sqrt(154.)/33. <<std::endl;
-
-  fparams.l = 8;
-  fparams.m = 8;
-  cz.set_lm( fparams.l, fparams.m);
-  cz.evaluate( fparams.u2, reZeta, imZeta );
-  double z88 = reZeta;
-  std::cout << "test ratio (z88/z80): " <<z88/z80 <<"," <<sqrt(1430.)/66. <<std::endl;
 
   return 0;
 }
