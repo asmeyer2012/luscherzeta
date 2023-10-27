@@ -39,7 +39,7 @@ class czeta(object):
 
   def evaluate( self, u2):
     if self.do_caching:
-      key = self.cur_d +self.cur_g +self.cur_l +self.cur_m +(str(u2),)
+      key = self.cur_s +self.cur_g +self.cur_l +self.cur_m +(str(u2),)
       if key in self.mem.keys():
         return self.mem[ key]
     dout = (c_double*2)()
