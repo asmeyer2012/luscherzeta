@@ -32,11 +32,69 @@ bool is_close(
   return diff < max( abs_th, epsilon * norm);
 }
 
+/// Compare complex of same type
+bool is_close( gsl_complex x, gsl_complex y)
+{
+  return (
+    is_close( GSL_REAL( x), GSL_REAL( y)) &&
+    is_close( GSL_IMAG( x), GSL_IMAG( y)) );
+}
+
 std::string gsl_complex_to_string( gsl_complex val )
 {
   stringstream sout;
   sout <<"(" <<GSL_REAL(val) <<", " <<GSL_IMAG(val) <<")";
   return sout.str();
+}
+
+double fill_weight( int zero_weight, int Nrmax){
+  if (rand() % 100 < zero_weight) {
+    return 0.;
+  } else {
+    return double( (rand() % Nrmax) +1) /double( Nrmax);
+  }
+}
+
+bool test_spherical_harmonics()
+{
+  int maxl = 2;
+
+  spherical_harmonic sharm(maxl);
+
+  int Nrand = 10000;
+  int Nrmax = 10000;
+  int zero_weight = 10;
+  std::vector<double> x0, x1, x2;
+  for (int i=0; i<Nrand; i++) {
+    x0.push_back( fill_weight( zero_weight, Nrmax));
+    x1.push_back( fill_weight( zero_weight, Nrmax));
+    x2.push_back( fill_weight( zero_weight, Nrmax));
+  }
+  for (int i=0; i<Nrand; i++) {
+    double x0_i = x0[ i];
+    double x1_i = x1[ i];
+    double x2_i = x2[ i];
+    // test identity Y_{lm}(theta, phi) = (-1)^{m} Y*_{lm}(theta, phi)
+    for (int l=0; l<maxl; l++) {
+      for (int m=-l; m<l+1; m++) {
+        double phase = ( (m % 2 == 0) ? 1. : -1. );
+        gsl_complex eval0 = sharm.evaluate( l, m, x0_i, x1_i, x2_i);
+        gsl_complex eval1 = gsl_complex_mul_real(
+          gsl_complex_conjugate( sharm.evaluate( l, -m, x0_i, x1_i, x2_i)), phase);
+        if (!is_close( eval0, eval1)) {
+          std::cout << "spherical harmonics failed: (l,m) = (" <<l <<", " <<m <<"): "
+          <<gsl_complex_to_string( eval0) <<", " <<gsl_complex_to_string( eval1) <<std::endl;
+          return false;
+        }
+        if (m == 0 && !is_small( GSL_IMAG( eval0))) {
+          std::cout << "spherical harmonics m=0 failed: (l,m) = (" <<l <<", " <<m <<"): "
+          <<gsl_complex_to_string( eval0) <<std::endl;
+          return false;
+        }
+      }
+    }
+  }
+  return true;
 }
 
 // code checks whether (real) eval of zeta function in center of mass gives expected ratios
@@ -123,6 +181,14 @@ int main(int argc, char** argv)
   cz.set_svec_gamma( sx, sy, sz, gamma);
 
   bool test_success = true;
+
+  std::cout <<"spherical harmonic tests" <<std::endl;
+  if (test_success) { test_success = test_spherical_harmonics(); }
+  if (test_success) {
+    std::cout <<"spherical harmonic tests passed" <<std::endl;
+  } else {
+    std::cout <<"spherical harmonic tests failed" <<std::endl;
+  }
 
   std::cout <<"ratio_test_com tests" <<std::endl;
   if (test_success) { test_success = ratio_test_com( cz, .9); }

@@ -17,5 +17,5 @@ libczeta.so: czeta.cc
 	${CC} -Wall -shared -O3 -fPIC -std=c++11 -o $@ $< ${INC} ${LIBS}
 
 clean:
-	rm -rf exe *.o *.so
+	rm -rf exe* *.o *.so
 
