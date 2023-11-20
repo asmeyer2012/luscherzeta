@@ -1,0 +1,474 @@
+\documentclass[a4paper]{article}
+\usepackage{amsmath}
+\usepackage{amssymb}
+\usepackage{color}
+\usepackage[
+  pdftex,
+  colorlinks=true,
+  linkcolor=blue,
+  filecolor=blue,
+  citecolor=blue,
+  urlcolor=blue,
+  pdfpagemode=UseNone,
+  bookmarksopen=true,
+]{hyperref}
+\usepackage{graphicx}
+\usepackage[square,sort,numbers]{natbib}
+\usepackage[margin=1in]{geometry}
+
+\newcommand{\bnl}{Brookhaven National Laboratory, Upton, NY 11973, USA}
+\newcommand{\ucb}{University of California, Berkeley, CA 94720, USA}
+\newcommand{\lbnl}{Lawrence Berkeley National Laboratory, Berkeley, CA 94720, USA}
+\newcommand{\llnl}{Lawrence Livermore National Laboratory, Livermore, CA 94550, USA}
+
+\begin{document}
+
+\title{Notes on Luscher Zeta Implementation}
+\author{Aaron S. Meyer}
+%\email{asmeyer.physics@gmail.com}
+%\affiliation{\llnl}
+\date{\today}
+
+\maketitle
+
+\section{Spherical Harmonics}
+
+\subsection{Polynomial Terms}
+
+The {\tt poly\_term} implementation has three arguments:
+ {\tt zexp} $\equiv r$,
+ {\tt qexp} $\equiv q$,
+ {\tt fac} $\equiv \alpha$.
+The {\tt evaluate()} function returns the polynomial
+\begin{align}
+ p(z) = \alpha \big( \sqrt{1-z^2} \big)^q z^r.
+\end{align}
+
+\subsection{Associated Legendre Polynomials}
+
+A container intended for an associated Legendre polynomial with a fixed $(\ell,m)$.
+This has some functions intended for easily constructing recursion relations.
+Also contains an {\tt evaluate()} function,
+ which sums the contributions from all the {\tt poly\_term}
+ objects this class holds.
+
+\subsection{Associated Legendre Pair}
+
+A struct to associate a specific $(\ell,m)$ combination with
+ an {\tt associated\_legendre\_poly} class instance.
+
+\subsection{Associated Legendre}
+
+A container class to hold the full set of Associated Legendre Polynomials $P_{\ell,m}$
+ and easily call them.
+The associated Legendre polynomials are deduced from recursion relations.
+
+Starting from the $(\ell,m) = (0,0)$ polynomial
+\begin{align}
+ P_{0,0}(z) = 1.
+\end{align}
+Maximum $\ell$ are deduced from relations that construct
+\begin{align}
+ P_{\ell+1,\ell+1}(z) = -(2\ell+1) \sqrt{1-z^2} P_{\ell,\ell}(z).
+\end{align}
+Other nonnegative $m$ are deduced from the sum rule
+\begin{align}
+ P_{\ell+1,m}(z) = \frac{1}{\ell-m+1}
+ \Big[ (2\ell+1)x P_{\ell,m}(z) -(\ell+m) P_{\ell-1,m}(z) \Big].
+\end{align}
+Finally, negative $m$ are obtained from the positive $m$
+\begin{align}
+ P_{\ell,-m}(z) = (-1)^{m} \frac{(\ell-m)!}{(\ell+m)!} P_{\ell,-m}(z)
+\end{align}
+
+\subsection{Spherical Harmonics}
+
+Compute the spherical harmonics
+\begin{align}
+ Y_{\ell,m}(\theta,\phi)
+ = \sqrt{ \frac{2\ell+1}{4\pi} \frac{(\ell-m)!}{(\ell+m)!} }
+ P_{\ell,m}(\cos\theta) e^{i m \phi}
+\end{align}
+
+\section{Zeta Function}
+
+\subsection{Input Parameters}
+
+Inputs are contained in the {\tt full\_params} structure.
+The inputs for the entire zeta function are $\vec{s}$, $u^{2}$, $\gamma$
+ in addition to spherical harmonic inputs $\ell$, $m$, and a pointer to a
+ {\tt spherical\_harmonic} class object.
+
+This is converted with the function {\tt full\_to\_zeta\_params()}
+ to the relevant parameters for the zeta function computation,
+ contained in the {\tt zeta\_lm\_params} structure.
+This takes as an additional input a 3-vector of integers $\vec{n}$.
+The returned parameters are
+\begin{itemize}
+ \item {\tt l} $\equiv \ell$ from the input
+ \item {\tt m} $\equiv m$ from the input
+ \item {\tt u2} $\equiv u^2$ from the input
+ \item {\tt gamma} $\equiv \gamma$ from the input
+ \item {\tt z2} $\equiv z^2$
+ \item {\tt z2u2} $\equiv z^2 - u^2$
+ \item {\tt ngam2}
+ $\equiv \pi^2 \Big( (\gamma^2-1) |\vec{n}_{\parallel}|^2 +|\vec{n}|^2 \Big)
+ = \pi^2 \Big( \gamma^2|\vec{n}_{\parallel}|^2 +|\vec{n}_{\perp}|^2 \Big)
+ = \pi^2 |\vec{w}|^{2}$
+ \item {\tt leadsum}
+ \item {\tt iphase}
+ \item {\tt rlYlm}
+ %\item {\tt gnlYlm}
+\end{itemize}
+
+The Lorentz boosted $\vec{n}$ appears often,
+ and is obtained by taking projections with $\vec{s}$:
+\begin{align}
+ \vec{n}_{\parallel} &= s^{-2} (\vec{n}\cdot\vec{s}) \vec{s} \\
+ \vec{n}_{\perp} &= \vec{n} - \vec{n}_{\parallel} \\
+ \vec{w} &= \gamma \vec{n}_{\parallel} + \vec{n}_{\perp} \nonumber\\
+         &= \vec{n} + (\gamma-1) s^{-2} (\vec{n}\cdot\vec{s}) \vec{s}
+\end{align}
+The other argument, $\vec{z}$, is similar
+\begin{align}
+ \vec{z}
+ &= \gamma^{-1} \Big( \vec{n}_{\parallel} + \frac{1}{2} \vec{s} \Big) + \vec{n}_{\perp} \nonumber\\
+ &= \vec{n} + \gamma^{-1} \Big(
+  \frac{1}{2} \vec{s} - (\gamma-1) \vec{n}_{\parallel} \Big) \nonumber\\
+ &= \vec{n} + \gamma^{-1} \Big(
+  \frac{1}{2} - (\gamma-1) s^{-2} (\vec{n}\cdot\vec{s}) \Big) \vec{s}.
+\end{align}
+This gives
+\begin{align}
+ z^2 = \gamma^{-2} \Big| \vec{n}_{\parallel} + \frac{1}{2}\vec{s} \Big|^{2}
+   + |\vec{n}_{\perp}|^{2}
+\end{align}
+
+{\tt iphase} is the phase and integral prefactor on the sum terms:
+\begin{align}
+ {\tt iphase} &= \gamma (i \pi w)^{\ell} Y_{\ell,m}(\hat{w}) e^{i\pi \vec{n}\cdot\vec{s}} \\
+ {\tt rlYlm} &= z^{\ell} Y_{\ell,m}(\hat{z}) \\
+ {\tt leadsum} &= z^{\ell} Y_{\ell,m}(\hat{z}) e^{-(z^{2}-u^{2})} / (z^2 -u^2)
+\end{align}
+
+\subsection{Integrals}
+
+\subsection{Integral}
+
+The integrand represented by the function {\tt integral\_zeta\_lm}:
+\begin{align}
+ I_0
+ &= \Big( \frac{\pi}{x} \Big)^{3/2}
+ \Big( \frac{1}{2x} \Big)^{\ell}
+ e^{ u^{2}x - {\tt ngam2}/x } \nonumber\\
+ &= \pi^{3/2} \, 2^{-\ell} \, x^{- \frac{3}{2} - \ell} \,
+ e^{ (u^{2} x^{2} - \pi^{2} |\vec{w}|^{2})/x }
+\end{align}
+This has the prefactor {\tt iphase} and is summed over all $\vec{n}$,
+ giving
+\begin{align}
+ \sum_{\vec{n}} {\tt iphase} \, \int_{0}^{1} dx \, I_0(x)
+ &= \gamma \, \pi^{3/2} \, 2^{-\ell} \sum_{\vec{n}}
+ x^{- \frac{3}{2} - \ell} \,
+ e^{i\pi \vec{n}\cdot\vec{s}} \,
+ Y_{\ell,m}(\hat{w}) \,
+ e^{ (u^{2} x^{2} - \pi^{2} |\vec{w}|^{2})/x }
+\end{align}
+ where $\vec{w}$ depends on $\vec{n}$ and $x$ is the integration variable.
+
+The integral is over the range $x \in (0,1)$ and the pertinent expression is
+ (Rummukainen \& Gottlieb Eq.(110))
+\begin{align}
+ (2\pi)^{3} \int_{0}^{1} dx \, {\cal K}_{\ell,m}^{\vec{s},\gamma}(x,\vec{0})
+ &= (2\pi)^{3} \int_{0}^{1} dx \, e^{ u^{2} x }
+ \gamma \, i^{\ell} \, (4\pi)^{-3/2} \, 2^{-\ell} x^{- \frac{3}{2} - \ell} \,
+ \sum_{\vec{n}} e^{i\pi \vec{n}\cdot\vec{s}} w^{\ell} Y_{\ell,m}(\hat{w})
+ e^{ - \pi^{2} |\vec{w}|^{2} /x } \\
+ &= \gamma \pi^{3/2} 2^{-\ell} i^{\ell}
+ \int_{0}^{1} dx \,
+ \sum_{\vec{n}}
+ x^{- \frac{3}{2} - \ell} \,
+ e^{i\pi \vec{n}\cdot\vec{s}} \,
+ w^{\ell} Y_{\ell,m}(\hat{w}) \,
+ e^{ ( u^{2} x^{2} - \pi^{2} |\vec{w}|^{2} ) /x }
+\end{align}
+
+\subsection{Subtracted Integral}
+
+The integrand represented by the function {\tt integral\_zeta\_lm\_sub}
+ is similar to {\tt integral\_zeta\_lm}, but evaluated at $\vec{n}=\vec{0}$.
+This integral is 0 for $\ell > 0$ since $r^{\ell} Y_{\ell,m}(\vec{r})\big|_{\vec{r}=0} = 0$:
+\begin{align}
+ I_1
+ &= \Big( \frac{\pi}{x} \Big)^{3/2}
+ \big( e^{ u^{2}x } -1 \big) \nonumber\\
+ &= \pi^{3/2} \, x^{-\frac{3}{2}} \,
+ \big( e^{ u^{2} x } - 1 \big)
+\end{align}
+This has the prefactor {\tt iphase} (which is trivially $\gamma$) and is only computed once
+\begin{align}
+ {\tt iphase} \, \int_{0}^{1} dx \, I_1(x)
+ &= \gamma \, \pi^{3/2} \, \int_{0}^{1} dx \, x^{- \frac{3}{2}} \,
+ \big( e^{ u^{2} x } - 1 \big) .
+\end{align}
+
+\subsection{Computation of Zeta Function}
+
+The computation of the zeta function proceeds as follows:
+
+\begin{align}
+ {\cal Z}_{\ell,m}
+ %&= 
+ %\frac{ z^{\ell} \, Y_{\ell,m}(\hat{z}) }{ (z^2 -u^2) } \Big|_{\vec{z} = \vec{s}/2\gamma}
+ %+ \gamma \pi \delta_{\ell,0} \delta_{m,0}
+ %+ \gamma \pi^{3/2} \delta_{\ell,0} \delta_{m,0} Y_{0,0}(\hat{0})
+ %\int_{0}^{1} dx \,  x^{- \frac{3}{2}} \big( e^{ u^{2} x } - 1 \big)
+ %\nonumber \\
+ %&\phantom{=\quad} + \sum_{\vec{n}\neq\vec{0},|\vec{z}|^{2}<u^{2}} \Biggr[
+ %\frac{ z^{\ell} \, Y_{\ell,m}(\hat{z}) }{ (z^2 -u^2) }
+ %- \frac{ z^{\ell} \, Y_{\ell,m}(\hat{z}) \big( 1 - e^{-(z^{2}-u^{2})} \big) }{ (z^2 -u^2) }
+ %\nonumber\\
+ %&\phantom{=\quad + \sum_{\vec{n}\neq\vec{0},|\vec{z}|^{2}<u^{2}} \Biggr[}
+ %+ \gamma \, \pi^{3/2} \, 2^{-\ell}
+ %e^{i\pi \vec{n}\cdot\vec{s}} \,
+ %\int_{0}^{1} dx \, x^{- \frac{3}{2} - \ell} \,
+ %Y_{\ell,m}(\hat{w}) \,
+ %e^{ (u^{2} x^{2} - \pi^{2} |\vec{w}|^{2})/x }
+ %\Biggr]
+ %\nonumber \\
+ %&\phantom{=\quad} + \sum_{\vec{n}\neq\vec{0},|\vec{z}|^{2}\geq u^{2}} \Biggr[
+ %\frac{ z^{\ell} \, Y_{\ell,m}(\hat{z}) e^{-(z^{2}-u^{2})} }{ (z^2 -u^2) }
+ %\nonumber\\
+ %&\phantom{=\quad + \sum_{\vec{n}\neq\vec{0},|\vec{z}|^{2}<u^{2}} \Biggr[}
+ %+ \gamma \, \pi^{3/2} \, 2^{-\ell}
+ %e^{i\pi \vec{n}\cdot\vec{s}} \,
+ %\int_{0}^{1} dx \, x^{- \frac{3}{2} - \ell} \,
+ %Y_{\ell,m}(\hat{w}) \,
+ %e^{ (u^{2} x^{2} - \pi^{2} |\vec{w}|^{2})/x }
+ %\Biggr]
+ %%%%%
+ =&
+ \Biggr[ z^{\ell} Y_{\ell,m}(\hat{z}) \frac{ e^{ -(z^{2} - u^{2})} }{ z^{2}-u^{2} }
+ \Biggr] \Biggr|_{\vec{n}=\vec{0}}
+ + \gamma \pi \delta_{\ell,0} \delta_{m,0} \Biggr[ 
+ 1 + \frac{1}{2} \int_{0}^{1} dx \, x^{-3/2} \big( e^{ u^{2} x } - 1 \big) \Biggr]
+ \nonumber\\
+ &+ \sum_{\vec{n}\neq\vec{0}}
+ \Biggr[ z^{\ell} Y_{\ell,m}(\hat{z}) \frac{ e^{ -(z^{2} - u^{2})} }{ z^{2}-u^{2} }
+ + i^\ell \gamma \pi^{3/2+\ell}
+ w^{\ell} Y_{\ell,m}(\hat{w}) e^{i\pi \vec{n}\cdot\vec{s}}
+ \int_{0}^{1} dx \, x^{-3/2-\ell} e^{ (u^{2} x^{2} -\pi^{2}w^{2}) /x } \Biggr]
+\end{align}
+%Note that an integral was solved explicitly,
+%\begin{align}
+% (2\pi)^{3} \int_{1}^{\infty} dx \, e^{u^{2}x}
+% \big[ (2\pi)^{-3/2} z^{\ell} Y_{\ell,m}(\hat{z}) e^{-z^{2} x} \big]
+% &=
+% (2\pi)^{3/2} z^{\ell} Y_{\ell,m}(\hat{z}) \int_{1}^{\infty} dx \, e^{-x(z^{2}-u^{2})}
+% \nonumber\\
+% &=
+% (2\pi)^{3/2} \frac{ z^{\ell} Y_{\ell,m}(\hat{z}) e^{-(z^{2}-u^{2})} }{ z^{2}-u^{2} }
+%\end{align}
+
+\subsection{Luscher Formulation}
+
+Luscher sets up the formula Eq.(C.8)
+\begin{align}
+ {\cal Z}_{\ell,m}
+ &= \sum_{\vec{n},|\vec{z}|<\lambda} \frac{ z^{\ell} Y_{\ell,m}(\hat{z}) }{ (z^{2} - u^{2}) }
+ + (2\pi)^{3} \int_{0}^{\infty} dx \,
+ \Big[ e^{x u^{2}} {\cal K}_{\ell,m}^{\vec{s},\lambda}(x,\vec{0})
+ - \frac{ \gamma \delta_{\ell,0} \delta_{m,0} }{ (4\pi)^{2} x^{3/2} } \Big]
+\end{align}
+The amputated kernel function is
+\begin{align}
+ {\cal K}_{\ell,m}^{\vec{s},\lambda}(x,\vec{r})
+ = 
+ {\cal K}_{\ell,m}^{\vec{s}}(x,\vec{r})
+ - (2\pi)^{-3} \sum_{\vec{n},|\vec{z}|<\lambda} e^{ i\vec{z}\cdot\vec{r} - x z^{2} }.
+\end{align}
+The partial wave kernel deduced from the $(0,0)$ kernel
+\begin{align}
+ {\cal K}_{\ell,m}^{\vec{s}}(x,\vec{r})
+ = (-i)^{\ell} |\vec{\nabla}|^{\ell} Y_{\ell,m}(\hat{\nabla}) {\cal K}^{\vec{s}}(x,\vec{r})
+\end{align}
+The unamputated kernel function is
+\begin{align}
+ {\cal K}^{\vec{s}}(x,\vec{r})
+ = \left\{ \begin{array}{lll}
+ (2\pi)^{-3} \sum_{\vec{n}} e^{ i\vec{z}\cdot\vec{r} - x z^{2} }
+ &:& x \geq 1 \\[.5em]
+ \gamma (4\pi x)^{-3/2} \sum_{\vec{n}} e^{i\pi \vec{n}\cdot\vec{s}}
+ e^{ -\frac{1}{4x} |\vec{r}-2\pi\vec{w}|^{2} }
+ &:& x < 1 \\[.5em]
+ \end{array} \right..
+\end{align}
+These are computed with $\vec{r}=\vec{0}$.
+Simplifying for the amputated kernel function,
+\begin{align}
+ {\cal K}_{\ell,m}^{\vec{s},\lambda}(x,\vec{0})
+ = \left\{ \begin{array}{l}
+ (2\pi)^{-3} \sum_{\vec{n},|\vec{z}|>\lambda} w^{\ell} Y_{\ell,m}(\hat{w}) e^{ - x w^{2} }
+ \\[.5em]
+ \gamma (4\pi x)^{-3/2} \big(-\frac{i\pi}{x}\big)^{\ell}
+ \sum_{\vec{n}} w^{\ell} Y_{\ell,m}(-\hat{w}) e^{i\pi \vec{n}\cdot\vec{s}}
+ e^{ -\frac{\pi^{2}w^{2}}{x} }
+ - (2\pi)^{-3} z^{\ell} Y_{\ell,m}(\hat{z}) \sum_{\vec{n},|\vec{z}|<\lambda} e^{ - x z^{2} }
+ \end{array} \right..
+\end{align}
+The $x\geq1$ integral is
+\begin{align}
+ (2\pi)^{3} \int_{1}^{\infty} dx \, e^{x u^{2}}
+ (2\pi)^{-3} \sum_{\vec{n},|\vec{z}|>\lambda} z^{\ell} Y_{\ell,m}(\hat{z}) e^{ - x z^{2} }
+ &= \int_{1}^{\infty} dx
+ \sum_{\vec{n},|\vec{z}|>\lambda} z^{\ell} Y_{\ell,m}(\hat{z}) e^{-x (z^{2} - u^{2})}
+ \nonumber\\
+ &= \sum_{\vec{n},|\vec{z}|>\lambda}
+ \frac{ z^{\ell} Y_{\ell,m}(\hat{z}) e^{- (z^{2} - u^{2})} }{ z^{2}-u^{2} }
+\end{align}
+For $x<1$, the second subtracted integral is evaluated in the same way
+\begin{align}
+ -(2\pi)^{3} \int_{0}^{1} dx \, e^{x u^{2}}
+ (2\pi)^{-3} \sum_{\vec{n},|\vec{z}|<\lambda} z^{\ell} Y_{\ell,m}(\hat{z}) e^{ - x z^{2} }
+ &= - \int_{0}^{1} dx
+ \sum_{\vec{n},|\vec{z}|<\lambda} z^{\ell} Y_{\ell,m}(\hat{z}) e^{-x (z^{2} - u^{2})}
+ \nonumber\\
+ &= +\sum_{\vec{n},|\vec{z}|<\lambda}
+ \Biggr[ z^{\ell} Y_{\ell,m}(\hat{z}) \frac{ e^{ -(z^{2} - u^{2})} - 1 }{ z^{2}-u^{2} } \Biggr]
+\end{align}
+The first term in the $x<1$ case is evaluated numerically,
+\begin{align}
+ &(2\pi)^{3} \int_{0}^{1} dx \, e^{ x u^{2} } \Biggr[ \gamma (4\pi x)^{-3/2}
+ \big(-\frac{i\pi}{x}\big)^{\ell}
+ \sum_{\vec{n}} w^{\ell} Y_{\ell,m}(-\hat{w})
+ e^{i\pi \vec{n}\cdot\vec{s}} e^{ -\frac{\pi^{2}w^{2}}{x} } \Biggr]
+ \nonumber\\
+ &=
+ i^\ell \gamma \pi^{3/2+\ell}
+ \sum_{\vec{n}} w^{\ell} Y_{\ell,m}(\hat{w}) e^{i\pi \vec{n}\cdot\vec{s}}
+ \int_{0}^{1} dx \, x^{-3/2-\ell} e^{ (u^{2} x^{2} -\pi^{2}w^{2}) /x }
+\end{align}
+ which makes use of the identity $Y_{\ell,m}(-\hat{w}) = (-1)^{\ell} Y_{\ell,m}(\hat{w})$.
+The remaining regulator term can be broken up into two separate integrals,
+\begin{align}
+ -(2\pi)^{3} \int_{0}^{\infty} dx \,
+ \Biggr[ \frac{ \gamma \delta_{\ell,0} \delta_{m,0} }{(4\pi)^{2} x^{3/2} } \Biggr]
+ &= -\gamma \frac{\pi}{2} \delta_{\ell,0} \delta_{m,0}
+ \Big[ \int_{0}^{1} dx \, x^{-3/2} + \int_{1}^{\infty} dx \, x^{-3/2} \Big]
+ \nonumber\\
+ &= \gamma \pi \delta_{\ell,0} \delta_{m,0}
+ \Big[ 1 -\frac{1}{2} \int_{0}^{1} dx \, x^{-3/2} \Big]
+\end{align}
+
+Substituting the results so far into the original quantization condition equation,
+ the zeta function evaluates to (Morningstar {\it et al.} Eq.(7))
+\begin{align}
+ {\cal Z}_{\ell,m}
+ =&
+ \sum_{\vec{n},|\vec{z}|<\lambda} \frac{ z^{\ell} Y_{\ell,m}(\hat{z}) }{ (z^{2} - u^{2}) }
+ +\sum_{\vec{n},|\vec{z}|<\lambda}
+ \Biggr[ z^{\ell} Y_{\ell,m}(\hat{z}) \frac{ e^{ -(z^{2} - u^{2})} - 1 }{ z^{2}-u^{2} } \Biggr]
+ + \sum_{\vec{n},|\vec{z}|>\lambda}
+ \frac{ z^{\ell} Y_{\ell,m}(\hat{z}) e^{- (z^{2} - u^{2})} }{ z^{2}-u^{2} }
+ \nonumber\\
+ &+ \gamma \pi \delta_{\ell,0} \delta_{m,0}
+ \Biggr[ 1 - \frac{1}{2} \int_{0}^{1} dx \, x^{-3/2} \Biggr]
+ + i^\ell \gamma \pi^{3/2+\ell}
+ \sum_{\vec{n}} w^{\ell} Y_{\ell,m}(\hat{w}) e^{i\pi \vec{n}\cdot\vec{s}}
+ \int_{0}^{1} dx \, x^{-3/2-\ell} e^{ (u^{2} x^{2} -\pi^{2}w^{2}) /x }
+ \nonumber\\
+ =& \sum_{\vec{n}}
+ \Biggr[ z^{\ell} Y_{\ell,m}(\hat{z}) \frac{ e^{ -(z^{2} - u^{2})} }{ z^{2}-u^{2} } \Biggr]
+ + \gamma \pi \delta_{\ell,0} \delta_{m,0}
+ \Biggr[ 1 - \frac{1}{2} \int_{0}^{1} dx \, x^{-3/2} \Biggr]
+ \nonumber\\
+ &+ i^\ell \gamma \pi^{3/2+\ell}
+ \sum_{\vec{n}} \Biggr[ w^{\ell} Y_{\ell,m}(\hat{w}) e^{i\pi \vec{n}\cdot\vec{s}}
+ \int_{0}^{1} dx \, x^{-3/2-\ell} e^{ (u^{2} x^{2} -\pi^{2}w^{2}) /x } \Biggr]
+ \nonumber\\[2em]
+ =& \sum_{\vec{n}}
+ \Biggr[ z^{\ell} Y_{\ell,m}(\hat{z}) \frac{ e^{ -(z^{2} - u^{2})} }{ z^{2}-u^{2} } \Biggr]
+ + \gamma \pi \delta_{\ell,0} \delta_{m,0} \Biggr[ 
+ 1 + \frac{1}{2} \int_{0}^{1} dx \, x^{-3/2} \big( e^{ u^{2} x } - 1 \big) \Biggr]
+ \nonumber\\
+ &+ i^\ell \gamma \pi^{3/2+\ell}
+ \sum_{\vec{n}\neq\vec{0}} \Biggr[ w^{\ell} Y_{\ell,m}(\hat{w}) e^{i\pi \vec{n}\cdot\vec{s}}
+ \int_{0}^{1} dx \, x^{-3/2-\ell} e^{ (u^{2} x^{2} -\pi^{2}w^{2}) /x } \Biggr]
+\end{align}
+
+Compare this to the implemented zeta function
+\begin{align}
+ {\cal Z}_{\ell,m}
+ %&= 
+ %\frac{ z^{\ell} \, Y_{\ell,m}(\hat{z}) }{ (z^2 -u^2) } \Big|_{\vec{z} = \vec{s}/2\gamma}
+ %+ \gamma \pi \delta_{\ell,0} \delta_{m,0}
+ %+ \gamma \pi^{3/2} \delta_{\ell,0} \delta_{m,0}
+ %\textcolor{red}{Y_{0,0}(0)}
+ %\int_{0}^{1} dx \,  x^{- \frac{3}{2}} \big( e^{ u^{2} x } - 1 \big)
+ %\nonumber \\
+ %&\phantom{=\quad} + \sum_{\vec{n}\neq\vec{0},|\vec{z}|^{2}<u^{2}} \Biggr[
+ %\frac{ z^{\ell} \, Y_{\ell,m}(\hat{z}) }{ (z^2 -u^2) }
+ %- \frac{ z^{\ell} \, Y_{\ell,m}(\hat{z}) \big( 1 - e^{-(z^{2}-u^{2})} \big) }{ (z^2 -u^2) }
+ %\nonumber\\
+ %&\phantom{=\quad + \sum_{\vec{n}\neq\vec{0},|\vec{z}|^{2}<u^{2}} \Biggr[}
+ %+ \gamma \, \pi^{3/2} \, 2^{-\ell}
+ %e^{i\pi \vec{n}\cdot\vec{s}} \,
+ %\int_{0}^{1} dx \, x^{- \frac{3}{2} - \ell} \,
+ %Y_{\ell,m}(\hat{w}) \,
+ %e^{ (u^{2} x^{2} - \pi^{2} |\vec{w}|^{2})/x }
+ %\Biggr]
+ %\nonumber \\
+ %&\phantom{=\quad} + \sum_{\vec{n}\neq\vec{0},|\vec{z}|^{2}\geq u^{2}} \Biggr[
+ %\frac{ z^{\ell} \, Y_{\ell,m}(\hat{z}) e^{-(z^{2}-u^{2})} }{ (z^2 -u^2) }
+ %\nonumber\\
+ %&\phantom{=\quad + \sum_{\vec{n}\neq\vec{0},|\vec{z}|^{2}<u^{2}} \Biggr[}
+ %+ \gamma \, \pi^{3/2} \, 2^{-\ell}
+ %e^{i\pi \vec{n}\cdot\vec{s}} \,
+ %\int_{0}^{1} dx \, x^{- \frac{3}{2} - \ell} \,
+ %Y_{\ell,m}(\hat{w}) \,
+ %e^{ (u^{2} x^{2} - \pi^{2} |\vec{w}|^{2})/x }
+ %\Biggr]
+ %\nonumber\\
+%%%%%%%%%%%%%%%%%%
+ %&= 
+ %\frac{ z^{\ell} \, Y_{\ell,m}(\hat{z}) }{ (z^2 -u^2) }
+ %- \frac{ z^{\ell} \, Y_{\ell,m}(\hat{z}) \big( 1 - e^{-(z^{2}-u^{2})} \big) }{
+ %(z^2 -u^2) } \Big|_{\vec{z} = \vec{s}/2\gamma}
+ %\nonumber\\
+ %&\phantom{=\quad} 
+ %+ \gamma \pi \delta_{\ell,0} \delta_{m,0}
+ %+ \gamma \pi^{3/2} \delta_{\ell,0} \delta_{m,0} Y_{0,0}(0)
+ %\int_{0}^{1} dx \,  x^{- \frac{3}{2}} \big( e^{ u^{2} x } - 1 \big)
+ %\nonumber \\
+ %&\phantom{=\quad} + \sum_{\vec{n}\neq\vec{0},|\vec{z}|^{2}<u^{2}} \Biggr[
+ %\frac{ z^{\ell} \, Y_{\ell,m}(\hat{z}) }{ (z^2 -u^2) }
+ %- \frac{ z^{\ell} \, Y_{\ell,m}(\hat{z})
+ %\big( 1 - e^{-(z^{2}-u^{2})} \big) }{ (z^2 -u^2) } \Biggr]
+ %\nonumber \\
+ %&\phantom{=\quad} + \sum_{\vec{n}\neq\vec{0},|\vec{z}|^{2}\geq u^{2}} \Biggr[
+ %\frac{ z^{\ell} \, Y_{\ell,m}(\hat{z}) e^{-(z^{2}-u^{2})} }{ (z^2 -u^2) }
+ %\Biggr]
+ %\nonumber\\
+ %&\phantom{=\quad}
+ %+ \sum_{\vec{n}\neq\vec{0}} \Biggr[
+ %\gamma \, \pi^{3/2}
+ %e^{i\pi \vec{n}\cdot\vec{s}} \,
+ %\int_{0}^{1} dx \, x^{- \frac{3}{2} - \ell} \,
+ %(i \pi w)^{\ell} Y_{\ell,m}(\hat{w}) \,
+ %e^{ (u^{2} x^{2} - \pi^{2} |\vec{w}|^{2})/x }
+ %\Biggr]
+ =&
+ \Biggr[ z^{\ell} Y_{\ell,m}(\hat{z}) \frac{ e^{ -(z^{2} - u^{2})} }{ z^{2}-u^{2} }
+ \Biggr] \Biggr|_{\vec{n}=\vec{0}}
+ + \gamma \pi \delta_{\ell,0} \delta_{m,0} \Biggr[ 
+ 1 + \frac{1}{2} \int_{0}^{1} dx \, x^{-3/2} \big( e^{ u^{2} x } - 1 \big) \Biggr]
+ \nonumber\\
+ &+ \sum_{\vec{n}\neq\vec{0}}
+ \Biggr[ z^{\ell} Y_{\ell,m}(\hat{z}) \frac{ e^{ -(z^{2} - u^{2})} }{ z^{2}-u^{2} }
+ + \pi^{3/2} \gamma (i\pi w)^{\ell} Y_{\ell,m}(\hat{w}) e^{i\pi \vec{n}\cdot\vec{s}}
+ \int_{0}^{1} dx \, x^{-3/2-\ell} e^{ (u^{2} x^{2} -\pi^{2}w^{2}) /x } \Biggr]
+\end{align}
+
+\end{document}
+
+
