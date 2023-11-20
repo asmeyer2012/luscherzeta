@@ -202,7 +202,7 @@ void associated_legendre::sumrule_mplus1(int l, int m) {
   this->poly.push_back( {l+1, m, pl0});
 }
 
-// use the sum rule P_{l}^{-m} = Gamma(l-m+1)/Gamma(l+m+1) P_{l}^{m}
+// use the sum rule P_{l}^{-m} = (-1)^{m} Gamma(l-m+1)/Gamma(l+m+1) P_{l}^{m}
 void associated_legendre::sumrule_minusm(int l, int m) {
   associated_legendre_poly pl0 = this->get_poly(l+1,-m).copy(); // still old max value of l
   pl0.scale( ((m % 2) == 0 ? 1. : -1. ) *gsl_sf_gamma( l+m+2) /gsl_sf_gamma( l-m+2));
