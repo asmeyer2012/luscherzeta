@@ -371,30 +371,23 @@ bool test_zeta_parity( czeta &cz)
 {
   for (int i=0; i<29; i++) { rand(); } // preincrement the RNG
   int maxl = 4;
-  int Nrand = 5;
+  int Nrand = 20;
   //int Nrmax = 10000;
   int zero_weight = 0;
   double L_a = 48.;
-  // it seems this is (mildly) sensitive to whether the parameters are sensible or not
-  // to avoid these kinds of issues, try to generate some reasonable parameters
+  // try to generate some reasonable parameters
   std::vector<double> s0, s1, s2;
   std::vector<double> gamma, u2vals;
   for (int i=0; i<Nrand; i++) {
     int d0_i = fill_weight_int( zero_weight, 3);
     int d1_i = fill_weight_int( zero_weight, 3);
     int d2_i = fill_weight_int( zero_weight, 3);
-    //int d0_i = 0;
-    //int d1_i = 0;
-    //int d2_i = 1;
     double aM1_i = ( double( rand()) /double( RAND_MAX));
     double aM2_i = aM1_i *(0.3 + 0.7* double( rand()) /double( RAND_MAX));
     double dsq = double( d0_i*d0_i +d1_i*d1_i +d2_i*d2_i);
     double aP2lab_i = (2. *M_PI /L_a) *(2. *M_PI /L_a) *dsq;
     double aEcom_i = (aM1_i +aM2_i) *(1.01 +0.1 *( double( rand()) /double( RAND_MAX)));
     double aElab_i = sqrt( aEcom_i *aEcom_i +aP2lab_i);
-    //double aElab_i = (aM1_i +aM2_i) *(1.01
-    //  +(2. *M_PI /L_a) *sqrt( dsq) *(1.0 +0.5 *double( rand()) /double( RAND_MAX)));
-    //double aEcom_i = sqrt( aElab_i *aElab_i -aP2lab_i);
     double aE2com_i = aEcom_i *aEcom_i;
     double d_fac = (1. +(aM1_i *aM1_i -aM2_i *aM2_i) /aE2com_i);
     double s0_i = d_fac *d0_i;
@@ -418,11 +411,12 @@ bool test_zeta_parity( czeta &cz)
 
   bool test_result = true;
   for (int i=0; i<Nrand; i++) {
+    std::cout <<" -- test " <<i+1 <<"/" <<Nrand <<std::endl;
     cz.set_svec_gamma( s0[i], s1[i], s2[i], gamma[i]);
     double res_real0 = 0., res_real1 = 0.;
     double res_imag0 = 0., res_imag1 = 0.;
-    std::cout <<"s " <<s0[i] <<"," <<s1[i] <<"," <<s2[i] <<std::endl;
-    std::cout <<"gamma " <<gamma[i] <<", u2 " <<u2vals[i] <<std::endl;
+    //std::cout <<"s " <<s0[i] <<"," <<s1[i] <<"," <<s2[i] <<std::endl;
+    //std::cout <<"gamma " <<gamma[i] <<", u2 " <<u2vals[i] <<std::endl;
     // test identity Z_{lm}(s, gamma, u2) = (-1)^{m} Z*_{lm}(s, gamma, u2)
     for (int l=0; l<maxl; l++) {
       for (int m=0; m<l+1; m++) {
@@ -441,9 +435,9 @@ bool test_zeta_parity( czeta &cz)
           test_result = false;
         }
         else {
-          std::cout << "zeta parity success: (l,m) = (" <<l <<", " <<m <<"): ("
-            <<res_real0 <<", " <<res_imag0 <<"), ("
-            <<res_real1 <<", " <<res_imag1 <<")" <<std::endl;
+          //std::cout << "zeta parity success: (l,m) = (" <<l <<", " <<m <<"): ("
+          //  <<res_real0 <<", " <<res_imag0 <<"), ("
+          //  <<res_real1 <<", " <<res_imag1 <<")" <<std::endl;
         }
       }
     }
