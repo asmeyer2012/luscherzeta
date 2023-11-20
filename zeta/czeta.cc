@@ -19,9 +19,9 @@
 class cxxzeta {
  public:
  cxxzeta();
- void set_svec_gamma(double sx, double sy, double sz, double gamma);
- void set_lm(int l, int m);
- void evaluate(double q2, double& reZeta, double& imZeta);
+ void set_svec_gamma( double sx, double sy, double sz, double gamma);
+ void set_lm( int l, int m);
+ void evaluate( double u2, double& reZeta, double& imZeta);
  private:
  spherical_harmonic sharm;
  struct full_params p;
@@ -39,19 +39,19 @@ cxxzeta::cxxzeta() {
  this->p.u2 = 1e-1;
 }
 
-void cxxzeta::set_svec_gamma(double sx, double sy, double sz, double gamma) {
+void cxxzeta::set_svec_gamma( double sx, double sy, double sz, double gamma) {
  this->p.sx = sx;
  this->p.sy = sy;
  this->p.sz = sz;
  this->p.gamma = gamma;
 }
 
-void cxxzeta::set_lm(int l, int m) {
+void cxxzeta::set_lm( int l, int m) {
  this->p.l = l;
  this->p.m = m;
 }
 
-void cxxzeta::evaluate(double u2, double& reZeta, double& imZeta)
+void cxxzeta::evaluate( double u2, double& reZeta, double& imZeta)
 {
   this->p.u2 = u2;
   gsl_set_error_handler( &gsl_to_c_handler ); // set my own error handler
@@ -70,7 +70,7 @@ extern "C" {
       ((cxxzeta*)cz)->set_lm( l,m); }
     //void zeta_eval(cxxzeta* cz, double q2, double& reZeta, double& imZeta) {
     //  cz->evaluate( q2, reZeta, imZeta); }
-    bool zeta_eval(void* cz, double u2, double *out) {
+    bool zeta_eval( void* cz, double u2, double *out) {
       double reZeta, imZeta;
       try {
         ((cxxzeta*)cz)->evaluate( u2, reZeta, imZeta);

@@ -4,12 +4,14 @@
 #include <assert.h>
 #include <math.h>
 #include <limits>
+#include <float.h>
 #include <gsl/gsl_complex.h>      // definitions for complex numbers
 #include <gsl/gsl_complex_math.h> // math with complex numbers
 #include <gsl/gsl_integration.h> // GSL integration
 #include <gsl/gsl_math.h>        // basic GSL math
 #include <gsl/gsl_sf_dawson.h>   // D(x) = \sqrt{\pi}{2} e^{-x^2} Erfi(x)
 #include <gsl/gsl_sf_exp.h>      // GSL exponential function
+#include <gsl/gsl_sf_trig.h>     // GSL sin/cos functions
 //#include <gsl/gsl_sf_result.h> // for better error handling on GSL, not needed
 
 #include "spherical.h"
@@ -17,13 +19,51 @@
 
 #define RELERR 1e-8 // relative error to compute zeta functions to
 
-// check relative error of two values
-bool relerr_check (double prevVal, double nextVal)
-{ return ( RELERR *abs( nextVal) < abs( nextVal -prevVal) ); }
+/// Absolute size comparison against 0 for double
+bool is_small( double x) { return fabs( x) < 16384 *DBL_EPSILON; }
 
-bool relerr_check (gsl_complex prevVal, gsl_complex nextVal)
-{ return ( RELERR *gsl_complex_abs2( nextVal)
-   < gsl_complex_abs2( gsl_complex_sub(nextVal,prevVal)) ); }
+/// Compare if two doubles are close in value to each other.
+/**
+  Will return true for numbers that share the first 10 significant digits
+  or if both numbers are below about \f$10^{-12}\f$.
+*/
+bool is_close(
+  double a, double b,
+  double epsilon = 128 * DBL_EPSILON, double abs_th = 16384 *DBL_EPSILON)
+{
+  if (a == b) return true;
+
+  auto diff = abs( a -b);
+  auto norm = min( (abs(a) + abs(b)), std::numeric_limits<double>::max());
+  // or even faster: std::min(std::abs(a + b), std::numeric_limits<float>::max());
+  return diff < max( abs_th, epsilon * norm);
+}
+
+/// Compare complex of same type
+bool is_close( gsl_complex x, gsl_complex y,
+  double epsilon = 128 * DBL_EPSILON, double abs_th = 16384 *DBL_EPSILON)
+{
+  return (
+    is_close( GSL_REAL( x), GSL_REAL( y), epsilon, abs_th) &&
+    is_close( GSL_IMAG( x), GSL_IMAG( y), epsilon, abs_th) );
+}
+
+std::string gsl_complex_to_string( gsl_complex val )
+{
+  stringstream sout;
+  sout <<"(" <<GSL_REAL(val) <<", " <<GSL_IMAG(val) <<")";
+  return sout.str();
+}
+
+/// check relative error of two double values
+bool relerr_check (double prevVal, double nextVal,
+  double epsilon = 128 * DBL_EPSILON, double abs_th = 16384 *DBL_EPSILON)
+{ return !is_close( prevVal, nextVal, epsilon, abs_th); }
+
+/// check relative error of two gsl_complex values
+bool relerr_check (gsl_complex prevVal, gsl_complex nextVal,
+  double epsilon = 128 * DBL_EPSILON, double abs_th = 16384 *DBL_EPSILON)
+{ return !is_close( prevVal, nextVal, epsilon, abs_th); }
 
 // full input parameters to get all prefactors correct
 struct full_params {
@@ -50,6 +90,7 @@ struct zeta_lm_params {
   gsl_complex leadsum; // leading sum term
   gsl_complex iphase;  // prefactor and phase on integral
   gsl_complex rlYlm;   // factor of r^l Y_{lm}(\hat{r})
+  gsl_complex wlYlm;   // TODO: Test
   int l;               // total angular momentum quantum number
   int m;               // z-component angular momentum quantum number
   };
@@ -73,14 +114,9 @@ struct zeta_lm_params full_to_zeta_lm_params(
   out_params.l = in_params.l;
   out_params.m = in_params.m;
 
-  // intermediates
-  //double ns, npar2, z2;
-  //double gnx, gny, gnz; // \hat{\gamma}.\vec{n}
-  //double zx, zy, zz; // \vec{n} +\gamma^{-1} ( 1/2 + (1-\gamma) \vec{n}\cdot\vec{s} s^{-2} )\vec{s}
-
   // included in iphase
   // factor of k^l Y_{lm}(\hat{k}) for \vec{k} = 2\pi \hat{\gamma}.\vec{n}
-  gsl_complex gnlYlm;
+  gsl_complex wlYlm;
 
   //if (in_params.dx || in_params.dy || in_params.dz) {
   double sx = in_params.sx;
@@ -110,18 +146,18 @@ struct zeta_lm_params full_to_zeta_lm_params(
   }
 
   // lorentz boosted \vec{n}: \gamma \vec{n}_\parallel +\vec{n}_\perp
-  // \vec{n} + (1-\gamma) \vec{n}\cdot\vec{s} s^{-2} \vec{s}
-  double gnx = nx -sfac0*sx;
-  double gny = ny -sfac0*sy;
-  double gnz = nz -sfac0*sz;
-  // scale by 2\pi for convenience
-  gnx *= 2. *M_PI;
-  gny *= 2. *M_PI;
-  gnz *= 2. *M_PI;
+  // \gamma (\vec{n}\cdot\vec{s} s^{-2}) \vec{s} + \vec{n} - (\vec{n}\cdot\vec{s} s^{-2}) \vec{s}
+  // = \vec{n} + (\gamma-1) \vec{n}\cdot\vec{s} s^{-2} \vec{s}
+  // = \vec{n} - (1-\gamma) \vec{n}\cdot\vec{s} s^{-2} \vec{s}
+  // = \vec{n} - (sfac0) \vec{s}
+  double wx = nx -sfac0*sx;
+  double wy = ny -sfac0*sy;
+  double wz = nz -sfac0*sz;
 
   // this factor shows up in z
   // \gamma^{-1} ( 1/2 + (1-\gamma) \vec{n}\cdot\vec{s} s^{-2} )
-  // \vec{z} = \vec{n} +\gamma^{-1} ( 1/2 + (1-\gamma) \vec{n}\cdot\vec{s} s^{-2} )\vec{s}
+  // \vec{z} = \vec{n} +\gamma^{-1} ( 1/2 + (1-\gamma) \vec{n}\cdot\vec{s} s^{-2} ) \vec{s}
+  // does not agree with 1707.05817 Eq.(8)!
   double sfac1 = (.5 +sfac0) /gamma;
   double zx = sfac1 *sx +nx;
   double zy = sfac1 *sy +ny;
@@ -130,12 +166,18 @@ struct zeta_lm_params full_to_zeta_lm_params(
   // angular momentum
   if ( in_params.l == 0 ) {
     out_params.rlYlm = gsl_complex_rect( 1./(2.*M_SQRTPI), 0.);
-    gnlYlm = out_params.rlYlm;
+    wlYlm = out_params.rlYlm;
   } else {
     // Rummukainen-Gottlieb have an extra factor of i^l, should be cancelled by derivative
-    out_params.rlYlm = in_params.sharm->evaluate( out_params.l, out_params.m, zx , zy , zz );
-    gnlYlm           = in_params.sharm->evaluate( out_params.l, out_params.m, gnx, gny, gnz);
+    double z_l = gsl_pow_int( sqrt( z2), out_params.l);
+    out_params.rlYlm = gsl_complex_mul_real( in_params.sharm->evaluate(
+      out_params.l, out_params.m, zx , zy , zz ), z_l);
+    gsl_complex w_l = gsl_complex_pow_real( gsl_complex_mul_real(
+      gsl_complex_rect( 0, M_PI), sqrt( wx*wx +wy*wy +wz*wz)), out_params.l);
+    wlYlm           = gsl_complex_mul( in_params.sharm->evaluate(
+      out_params.l, out_params.m, wx, wy, wz), w_l);
   }
+  out_params.wlYlm = wlYlm;
 
   double z2u2 = z2 - in_params.u2; // argument for leading sum term
 
@@ -145,15 +187,14 @@ struct zeta_lm_params full_to_zeta_lm_params(
 
   // == \gamma e^{-i\pi n.d} / 2\sqrt{\pi}, phase for integral
   // nd is always integer, so real
-  //out_params.iphase = gsl_complex_mul_real( gnlYlm, gam *gsl_pow_int(-1.,int(nd)));
-  gsl_complex exp_exponent = gsl_complex_rect( 0, M_PI *ns);
-  gsl_complex exp_product  = gsl_complex_mul( gnlYlm, gsl_complex_exp( exp_exponent ));
+  gsl_complex exp_exponent = gsl_complex_rect( gsl_sf_cos( M_PI *ns), gsl_sf_sin( M_PI *ns));
+  gsl_complex exp_product  = gsl_complex_mul( wlYlm, exp_exponent);
   out_params.iphase = gsl_complex_mul_real( exp_product, gamma);
 
   // other useful terms
   out_params.z2 = z2;
   out_params.z2u2 = z2u2;
-  out_params.leadsum = gsl_complex_mul_real( out_params.rlYlm, 1./z2u2 );
+  out_params.leadsum = gsl_complex_mul_real( out_params.rlYlm, gsl_sf_exp( -z2u2) /z2u2 );
 
   return out_params;
 }
@@ -164,17 +205,16 @@ double integral_zeta_lm_sub (double x, void * p)
 {
   struct zeta_lm_params * params = (struct zeta_lm_params *)p;
   double u2 = (params->u2);
-  double ngam2 = (params->ngam2);
   try {
     // deal with roundoff error. thanks Taku
-    double y = u2*x -ngam2/x;
+    double y = u2*x;
     if(fabs(y) > 1e-4) {
       return pow( M_PI/x, 1.5) *(gsl_sf_exp(y) - 1.0);
     }
     else {
-      return pow( M_PI/x, 1.5) *y*(1.+y/2*(1.+y/3.*(1.+y/4.*(1.+y/5.*(1.+y/6)))));
+      return pow( M_PI/x, 1.5) *(
+        y*(1.+y/2.*(1.+y/3.*(1.+y/4.*(1.+y/5.*(1.+y/6.*(1.+y/7.*(1.+y/8.))))))));
     }
-    //return pow( M_PI/x, 1.5) *(gsl_sf_exp(u2*x -ngam2/x) - 1.);
   }
   catch ( gsl_underflow_exception& e) {
     return 0.;
@@ -188,8 +228,8 @@ double integral_zeta_lm(double x, void * p)
   double ngam2 = (params->ngam2);
   int l = (params->l);
   try {
-    // (\pi/t)^{3/2} (1/2t)^{l} exp{t q.q - n.n/t}
-    return pow( M_PI/x, 1.5) *gsl_pow_int( .5/x, l) *gsl_sf_exp( u2*x -ngam2/x);
+    // (\pi/t)^{3/2} (1/t)^{l} exp{t u.u - w.w/t}
+    return pow( M_PI/x, 1.5) *gsl_pow_int( x, -l) *gsl_sf_exp( u2*x -ngam2/x);
   }
   catch ( gsl_underflow_exception& e) {
     return 0.;
@@ -202,7 +242,7 @@ gsl_complex full_zeta_lm (struct full_params p)
   gsl_complex prevAns = gsl_complex_rect( 0., 0.);
   gsl_complex nextAns = gsl_complex_rect( 0., 0.);
   double epsabs = 0.;
-  double epsrel = 1e-8;
+  double epsrel = 1e-7;
   double abserr = 0.;
   double result = 0.;
   size_t limit = 1000;
@@ -213,7 +253,7 @@ gsl_complex full_zeta_lm (struct full_params p)
   F.params = &zp;
 
   // (nx,ny,nz) = 0 term needs to be handled explicitly
-  // Ylm(\vec{r}) / (z2-u2)
+  // Ylm(\vec{r}) e^{-(z2-u2)} / (z2-u2)
   zp = full_to_zeta_lm_params( 0,0,0, p);
   nextAns = gsl_complex_add( nextAns, zp.leadsum);
 
@@ -232,20 +272,12 @@ gsl_complex full_zeta_lm (struct full_params p)
     nextAns = gsl_complex_add( nextAns, gsl_complex_mul_real( zp.iphase, result));
   }
 
-  // (2\pi)^3 (1/(2\pi)^{3}) Ylm(\vec{r} \int_0^1 dt e^{-t (z2-u2)}
-  // == Ylm(\vec{r}) (e^{-(z2-u2)} - 1) / (z2-u2)
-  nextAns = gsl_complex_sub( nextAns,
-   gsl_complex_mul_real( zp.rlYlm, (1. -gsl_sf_exp(-zp.z2u2)) /zp.z2u2 ));
-
-  // remaining term of \int_1^\infty is an exact cancellation by definition
-
-  prevAns = nextAns;
-
   // sum the contributions of the remaining (nx,ny,nz) != 0 tuples
-  // use unsubtracted version for everything else
   F.function = &integral_zeta_lm;
-  while ( i < p.u2 || relerr_check( prevAns, nextAns) || (i % 4 != 0) ) {
-    prevAns = nextAns;
+  int Ncheck = 20;
+  while ( i < 5*p.gamma*p.u2 || !is_close( prevAns, nextAns, 1e-8, 1e-8) || (i % Ncheck != 0) )
+  {
+    if (i % Ncheck == 0) { prevAns = nextAns; }
     auto vecCombos = all_combos( i); // get a list of all vector combos for this choice
 
     for ( auto vecc = vecCombos.begin(); vecc != vecCombos.end(); vecc++ ) {
@@ -253,26 +285,15 @@ gsl_complex full_zeta_lm (struct full_params p)
       for ( auto vecp = vecPerms.begin(); vecp != vecPerms.end(); vecp++ ) {
 
         zp = full_to_zeta_lm_params( (*vecp)[0], (*vecp)[1], (*vecp)[2], p);
-
+        nextAns = gsl_complex_add( nextAns, zp.leadsum);
         // qag integration over: \int_0^1 dt (\pi/t)^{3/2} (1/2t)^{l} exp{t q.q - n.n/t}
-        if ( zp.z2 < zp.u2) {
-          gsl_integration_qag(&F, 0., 1., epsabs, epsrel, limit, 1, w, &result, &abserr);
-          nextAns = gsl_complex_sub( nextAns,
-           gsl_complex_mul_real( zp.rlYlm, (1. -gsl_sf_exp(-zp.z2u2)) /zp.z2u2 ));
-          nextAns = gsl_complex_add( nextAns, zp.leadsum);
-          nextAns = gsl_complex_add( nextAns, gsl_complex_mul_real( zp.iphase, result));
-        }
-        else {
-          gsl_integration_qag(&F, 0., 1., epsabs, epsrel, limit, 1, w, &result, &abserr);
-          nextAns = gsl_complex_add( nextAns,
-           gsl_complex_mul_real( zp.rlYlm, gsl_sf_exp(-zp.z2u2) /zp.z2u2 ));
-          nextAns = gsl_complex_add( nextAns, gsl_complex_mul_real( zp.iphase, result));
-        }
+        gsl_integration_qag( &F, 0., 1., epsabs, epsrel, limit, 1, w, &result, &abserr);
+        nextAns = gsl_complex_add( nextAns, gsl_complex_mul_real( zp.iphase, result));
       }
     }
 
     i++;
-    assert(i < 100);
+    assert(i < 100 *Ncheck);
   }
 
   return nextAns;
