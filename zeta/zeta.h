@@ -204,10 +204,10 @@ struct zeta_lm_params full_to_zeta_lm_params(
 double integral_zeta_lm_sub (double x, void * p)
 {
   struct zeta_lm_params * params = (struct zeta_lm_params *)p;
-  double z2u2 = (params->z2u2);
+  double u2 = (params->u2);
   try {
     // deal with roundoff error. thanks Taku
-    double y = z2u2*x;
+    double y = u2*x;
     if(fabs(y) > 1e-4) {
       return pow( M_PI/x, 1.5) *(gsl_sf_exp(y) - 1.0);
     }
@@ -253,7 +253,7 @@ gsl_complex full_zeta_lm (struct full_params p)
   F.params = &zp;
 
   // (nx,ny,nz) = 0 term needs to be handled explicitly
-  // Ylm(\vec{r}) / (z2-u2)
+  // Ylm(\vec{r}) e^{-(z2-u2)} / (z2-u2)
   zp = full_to_zeta_lm_params( 0,0,0, p);
   nextAns = gsl_complex_add( nextAns, zp.leadsum);
 
@@ -272,12 +272,7 @@ gsl_complex full_zeta_lm (struct full_params p)
     nextAns = gsl_complex_add( nextAns, gsl_complex_mul_real( zp.iphase, result));
   }
 
-  // remaining term of \int_1^\infty is an exact cancellation by definition
-
-  prevAns = gsl_complex_rect( 0., 0.);
-
   // sum the contributions of the remaining (nx,ny,nz) != 0 tuples
-  // use unsubtracted version for everything else
   F.function = &integral_zeta_lm;
   int Ncheck = 20;
   while ( i < 5*p.gamma*p.u2 || !is_close( prevAns, nextAns, 1e-8, 1e-8) || (i % Ncheck != 0) )
@@ -290,9 +285,8 @@ gsl_complex full_zeta_lm (struct full_params p)
       for ( auto vecp = vecPerms.begin(); vecp != vecPerms.end(); vecp++ ) {
 
         zp = full_to_zeta_lm_params( (*vecp)[0], (*vecp)[1], (*vecp)[2], p);
-
-        // qag integration over: \int_0^1 dt (\pi/t)^{3/2} (1/2t)^{l} exp{t q.q - n.n/t}
         nextAns = gsl_complex_add( nextAns, zp.leadsum);
+        // qag integration over: \int_0^1 dt (\pi/t)^{3/2} (1/2t)^{l} exp{t q.q - n.n/t}
         gsl_integration_qag( &F, 0., 1., epsabs, epsrel, limit, 1, w, &result, &abserr);
         nextAns = gsl_complex_add( nextAns, gsl_complex_mul_real( zp.iphase, result));
       }
