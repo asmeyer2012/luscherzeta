@@ -194,7 +194,13 @@ struct zeta_lm_params full_to_zeta_lm_params(
   // other useful terms
   out_params.z2 = z2;
   out_params.z2u2 = z2u2;
-  out_params.leadsum = gsl_complex_mul_real( out_params.rlYlm, gsl_sf_exp( -z2u2) /z2u2 );
+  gsl_set_error_handler( &gsl_to_c_handler );
+  try {
+    out_params.leadsum = gsl_complex_mul_real( out_params.rlYlm, gsl_sf_exp( -z2u2) /z2u2 );
+  }
+  catch ( gsl_other_exception& e ) {
+    out_params.leadsum = gsl_complex_rect( 0., 0.);
+  }
 
   return out_params;
 }
@@ -275,9 +281,9 @@ gsl_complex full_zeta_lm (struct full_params p)
   // sum the contributions of the remaining (nx,ny,nz) != 0 tuples
   F.function = &integral_zeta_lm;
   int Ncheck = 20;
-  while ( i < 5*p.gamma*p.u2 || !is_close( prevAns, nextAns, 1e-8, 1e-8) || (i % Ncheck != 0) )
+  while ( i < 2*p.gamma*p.u2 || !is_close( prevAns, nextAns, 1e-8, 1e-8) || (i % Ncheck != 0) )
   {
-    if (i % Ncheck == 0) { prevAns = nextAns; }
+    prevAns = nextAns;
     auto vecCombos = all_combos( i); // get a list of all vector combos for this choice
 
     for ( auto vecc = vecCombos.begin(); vecc != vecCombos.end(); vecc++ ) {
