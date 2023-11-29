@@ -499,29 +499,58 @@ int main(int argc, char** argv)
     }
   }
 
-  //int maxl = 4;
-  //double reZeta, imZeta;
-  //sx = 0.;
-  //sy = 1.;
-  //sz = 1.;
-  //gamma = 1.1;
-  //cz.set_svec_gamma( sx, sy, sz, gamma);
+  int maxl = 4;
+  double reZeta, imZeta;
+  double u2 = .9;
+  sx = 0.5;
+  sy = 0.;
+  sz = 1.;
+  gamma = 1.1;
+  cz.set_svec_gamma( sx, sy, sz, gamma);
 
-  //double u2 = .9;
-  //for (int l = 0; l < maxl+1; l++) {
-  //  for (int m = -l; m < l+1; m++) {
-  //    cz.set_lm( l, m);
-  //    cz.evaluate( u2, reZeta, imZeta );
+  /*
+    reference values for s = (0.5, 0., 1.), gamma = 1.1, u2 = 0.9
+    zeta 0, 0: -3.18316, -4.01366e-22
+    zeta 1, -1: 4.8851, 5.76205e-16
+    zeta 1, 0: -1.46739, 2.06812e-25
+    zeta 1, 1: -4.8851, 5.4845e-16
+    zeta 2, -2: -6.31139, -9.67225e-16
+    zeta 2, -1: 2.13075, 2.32142e-16
+    zeta 2, 0: -1.67702, -8.63062e-20
+    zeta 2, 1: -2.13075, 1.30442e-16
+    zeta 2, 2: -6.31139, 8.56514e-16
+    zeta 3, -3: 2.81233, 9.11408e-16
+    zeta 3, -2: -2.11554, -5.54262e-16
+    zeta 3, -1: 1.04798, 8.61201e-17
+    zeta 3, 0: 1.44566, 6.61898e-24
+    zeta 3, 1: -1.04798, 1.14533e-16
+    zeta 3, 2: -2.11554, 6.2355e-16
+    zeta 3, 3: -2.81233, 9.91722e-16
+    zeta 4, -4: -1.42568, -1.12753e-15
+    zeta 4, -3: 2.01453, 8.39169e-16
+    zeta 4, -2: -3.42896, -5.77437e-16
+    zeta 4, -1: -0.936748, -1.20386e-16
+    zeta 4, 0: 3.11935, -5.66952e-19
+    zeta 4, 1: 0.936748, -1.42404e-17
+    zeta 4, 2: -3.42896, 5.13703e-16
+    zeta 4, 3: -2.01453, 6.30999e-16
+    zeta 4, 4: -1.42568, 9.75667e-16
+  */
 
-  //    std::cout << "zeta " <<l <<", " <<m <<": "
-  //      << reZeta <<", " <<imZeta << std::endl;
+  for (int l = 0; l < maxl+1; l++) {
+    for (int m = -l; m < l+1; m++) {
+      cz.set_lm( l, m);
+      cz.evaluate( u2, reZeta, imZeta );
 
-  //    //gsl_set_error_handler( &gsl_to_c_handler ); // set my own error handler
-  //    //std::cout << "zeta " <<l <<", " <<m <<": "
-  //    //  << gsl_complex_to_string(full_zeta_lm (fparams)) << std::endl;
-  //    //gsl_set_error_handler( NULL );
-  //  }
-  //}
+      std::cout << "zeta " <<l <<", " <<m <<": "
+        << reZeta <<", " <<imZeta << std::endl;
+
+      //gsl_set_error_handler( &gsl_to_c_handler ); // set my own error handler
+      //std::cout << "zeta " <<l <<", " <<m <<": "
+      //  << gsl_complex_to_string(full_zeta_lm (fparams)) << std::endl;
+      //gsl_set_error_handler( NULL );
+    }
+  }
 
   return 0;
 }
